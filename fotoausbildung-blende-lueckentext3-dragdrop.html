@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lückentext (Drag &amp; Drop)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<script>if (window.self !== window.top) document.documentElement.classList.add('eingebettet');</script>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #161B22;              /* Hintergrund, wenn die Übung direkt im Browser geöffnet wird */
+    --bg-im-rahmen: transparent; /* Hintergrund, wenn die Übung in Genially eingebettet ist */
+    --max-breite: none;         /* none = volle Breite des Rahmens; z. B. 46rem = schmalerer Textblock */
+    --ink: #E6EBF0;
+    --muted: #9AA7B3;
+    --line: #2E3843;
+    --field: #212933;
+    --field-line: #3D4957;
+    --chip: #2B3541;            /* Wortkarten */
+    --accent: #5BB8C4;
+    --accent-bg: rgba(91, 184, 196, .18);
+    --ok: #7EDDA3;   --ok-bg: rgba(92, 201, 138, .14);
+    --bad: #FF8F84;  --bad-bg: rgba(240, 122, 110, .15);
+    --sol: #F0CD6E;  --sol-bg: rgba(232, 193, 90, .14);
+  }
+  * { box-sizing: border-box; }
+  /* Schriftgröße wächst mit der Breite des Rahmens mit */
+  html { font-size: clamp(15px, 0.9vw + 9px, 22px); }
+  html.eingebettet, html.eingebettet body { background: var(--bg-im-rahmen); }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  body { padding: clamp(16px, 4vw, 40px); }
+  main { max-width: var(--max-breite); margin: 0 auto; }
+
+  h1 { font-size: 1.5rem; line-height: 1.25; margin: 0 0 .4rem; font-weight: 700; letter-spacing: .005em; }
+  .anleitung { color: var(--muted); margin: 0 0 1.75rem; line-height: 1.5; }
+
+  .text p { font-size: 1.125rem; line-height: 2.4; margin: 0 0 1rem; }
+  .text ul { font-size: 1.125rem; line-height: 2.4; margin: 0 0 1rem; padding-left: 1.5rem; }
+  .text li::marker { color: var(--accent); }
+  .text strong { font-weight: 700; }
+
+  /* ---------- Lücken im Text ---------- */
+  .luecke {
+    font: inherit;
+    color: var(--ink);
+    display: inline-block;
+    min-width: 6.5em;
+    max-width: 100%;
+    margin: 0 .1rem;
+    padding: .15em .6em;
+    line-height: 1.4;
+    text-align: center;
+    vertical-align: baseline;
+    background: var(--field);
+    border: 1px dashed var(--field-line);
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color .15s, border-color .15s, color .15s, opacity .15s;
+  }
+  .luecke.belegt { background: var(--chip); border-style: solid; cursor: grab; touch-action: none; }
+  .zeichen { font-weight: 700; margin-left: .35em; }
+  .zeichen:empty { display: none; }
+
+  /* Wort ausgewählt: Lücken laden zum Anklicken ein */
+  html.auswahl-aktiv .luecke:not(.gesperrt) { border-color: var(--accent); }
+  .luecke.ziel { background: var(--accent-bg); border: 1px solid var(--accent); outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .luecke.richtig { background: var(--ok-bg);  border: 1px solid var(--ok);  color: var(--ok); }
+  .luecke.falsch  { background: var(--bad-bg); border: 1px solid var(--bad); color: var(--bad); }
+  .luecke.geloest { background: var(--sol-bg); border: 1px dashed var(--sol); color: var(--sol); }
+  .luecke.gesperrt { cursor: default; touch-action: auto; }
+  .luecke:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .luecke.gelandet { animation: landen .18s ease-out; }
+  @keyframes landen { from { transform: scale(.9); } to { transform: scale(1); } }
+
+  /* ---------- Wortauswahl ---------- */
+  .wortauswahl {
+    margin: 1.5rem 0 0;
+    padding: .8rem 1rem 1rem;
+    background: var(--field);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    transition: outline-color .2s;
+    outline: 2px solid transparent;
+    outline-offset: -2px;
+  }
+  .wortauswahl.oben { margin: 0 0 1.5rem; }
+  .wortauswahl.fixiert { position: sticky; z-index: 5; max-height: 45vh; overflow-y: auto; }
+  .wortauswahl.fixiert.unten { bottom: 0; box-shadow: 0 -12px 24px -10px rgba(0, 0, 0, .6); }
+  .wortauswahl.fixiert.oben  { top: 0;    box-shadow: 0 12px 24px -10px rgba(0, 0, 0, .6); }
+  .wortauswahl.ziel, .wortauswahl.hinweis { outline-color: var(--accent); }
+  .wortauswahl h2 { font-size: .9rem; font-weight: 700; color: var(--muted); margin: 0 0 .6rem; }
+
+  .woerter { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .5rem; }
+  .slot { display: flex; border-radius: 6px; max-width: 100%; }
+  .slot.leer { outline: 1px dashed var(--field-line); outline-offset: -1px; }
+
+  .wort {
+    font: inherit;
+    font-size: 1rem;
+    color: var(--ink);
+    max-width: 100%;
+    padding: .3rem .75rem;
+    line-height: 1.4;
+    background: var(--chip);
+    border: 1px solid var(--field-line);
+    border-radius: 6px;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color .15s, border-color .15s, opacity .15s;
+  }
+  .wort:hover { border-color: var(--accent); }
+  .wort.ausgewaehlt { background: var(--accent-bg); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .wort.platziert { visibility: hidden; }
+  .wort:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* Herkunft eines gerade gezogenen Wortes */
+  .quelle { opacity: .35; }
+
+  /* Wortkarte, die beim Ziehen am Zeiger hängt */
+  .geist {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 1000;
+    pointer-events: none;
+    padding: .3rem .75rem;
+    line-height: 1.4;
+    white-space: nowrap;
+    color: var(--ink);
+    background: #33404E;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .5);
+    will-change: transform;
+  }
+  html.ziehen, html.ziehen * { cursor: grabbing !important; user-select: none !important; -webkit-user-select: none !important; }
+
+  .extern { display: inline-block; margin: 0 0 1.5rem; color: var(--accent); font-weight: 700; text-underline-offset: 3px; }
+  .extern[hidden] { display: none; }
+  .extern:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 2px; }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+  .auswertung { margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+  .ergebnis { margin: 0 0 1rem; font-size: 1.05rem; line-height: 1.5; }
+  .ergebnis:empty { display: none; }
+  .knoepfe { display: flex; flex-wrap: wrap; gap: .6rem; }
+
+  .knoepfe button {
+    font: inherit;
+    font-size: 1rem;
+    padding: .6rem 1.1rem;
+    border-radius: 6px;
+    border: 1px solid var(--accent);
+    cursor: pointer;
+    transition: background-color .15s, color .15s;
+  }
+  .knoepfe button[hidden] { display: none; }
+  .primaer   { background: var(--accent); color: #0D1F23; font-weight: 700; }
+  .primaer:hover { background: #74C8D3; border-color: #74C8D3; }
+  .sekundaer { background: transparent; color: var(--accent); }
+  .sekundaer:hover { background: rgba(91, 184, 196, .12); }
+  .knoepfe button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .luecke, .wort, .wortauswahl, .knoepfe button { transition: none; }
+    .luecke.gelandet { animation: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+  <!-- ====== HIER ANPASSEN: Überschrift und Arbeitsanweisung ====== -->
+  <h1>Blende und Schärfentiefe</h1>
+  <p class="anleitung">Ziehe die Wörter in die passenden Lücken. Du kannst auch erst ein Wort und dann eine Lücke anklicken. Ein eingesetztes Wort entfernst du, indem du es zurückziehst oder anklickst.</p>
+  <a class="extern" id="extern" href="#" target="_blank" rel="noopener" hidden>Übung in eigenem Fenster öffnen</a>
+
+  <!--
+    ====== HIER ANPASSEN: Der Lückentext ======
+    - Jede Lücke steht in eckigen Klammern:   [Antwort]
+    - Aus jeder Lücke wird eine Wortkarte zum Ziehen.
+      Kommt ein Wort mehrfach vor (z. B. zweimal [kleiner]), gibt es auch zwei Karten.
+    - Mehrere richtige Antworten mit |:       [Glucose|Glukose|Traubenzucker]
+      (nur die erste erscheint als Wortkarte; die anderen werden ebenfalls als richtig
+      gewertet, falls sie als Distraktor oder in einer anderen Lücke vorkommen)
+    - Einfacher Zeilenumbruch = wird ignoriert, der Text läuft weiter.
+    - Eine Leerzeile beginnt einen neuen Absatz.
+    - Eine Zeile, die mit "- " beginnt, wird ein Aufzählungspunkt.
+    - Fett:   <strong>Wort</strong>     Kursiv:   <em>Wort</em>
+    - Beliebig viele Lücken möglich.
+  -->
+  <script type="text/plain" id="lueckentext">
+Eine Regel besagt, dass die Schärfentiefe etwa [1/3] vor dem anvisierten Motiv und etwa [2/3] hinter diesem liegt. Zwei weitere Faktoren bezüglich der Schärfentiefe:
+
+Die Entfernung: Je [weiter] die Entfernung von Objektiv und Motiv ist, umso [größer] ist der Schärfentiefebereich.
+
+Die Brennweite: Weitwinkelobjektive bieten [größere] Schärfentiefen, Teleobjektive bieten [geringere].
+  </script>
+
+  <!--
+    ====== HIER ANPASSEN: Distraktoren (falsche Wörter zum Ziehen) ======
+    - Ein Wort pro Zeile.
+    - Leer lassen, wenn nur die richtigen Wörter zur Auswahl stehen sollen.
+  -->
+  <script type="text/plain" id="distraktoren">
+1/3
+1/4
+größere
+  </script>
+
+  <div class="text" id="text"></div>
+
+  <section class="wortauswahl" id="wortauswahl" aria-labelledby="wortauswahl-titel">
+    <h2 id="wortauswahl-titel">Wörter zur Auswahl</h2>
+    <ul class="woerter" id="woerter"></ul>
+  </section>
+
+  <div class="auswertung">
+    <p class="ergebnis" id="ergebnis" aria-live="polite"></p>
+    <div class="knoepfe">
+      <button type="button" class="primaer" id="pruefen">Antworten prüfen</button>
+      <button type="button" class="sekundaer" id="loesungen" hidden>Lösungen anzeigen</button>
+      <button type="button" class="sekundaer" id="neu" hidden>Von vorn beginnen</button>
+    </div>
+  </div>
+  <p class="sr-only" id="ansage" aria-live="polite"></p>
+
+</main>
+
+<script>
+  // ====== HIER ANPASSEN: Einstellungen ======
+  const EINSTELLUNGEN = {
+    loesungenAnzeigenErlaubt: true, // false = Knopf "Lösungen anzeigen" erscheint nie
+
+    // Wo stehen die Wörter zum Ziehen?  'unten' = unter dem Text,  'oben' = über dem Text
+    wortauswahlPosition: 'unten',
+    // true = die Wörter bleiben beim Scrollen am Rand sichtbar (praktisch bei langen Texten)
+    wortauswahlFixiert: true,
+    // 'zufall' = Wörter gemischt, 'alphabetisch' = Wörter nach Alphabet sortiert
+    wortReihenfolge: 'zufall'
+  };
+
+  // ---------- Ab hier nichts mehr ändern nötig ----------
+  const wurzel = document.documentElement;
+  const textEl = document.getElementById('text');
+  const auswahlEl = document.getElementById('wortauswahl');
+  const woerterEl = document.getElementById('woerter');
+  const ergebnisEl = document.getElementById('ergebnis');
+  const ansageEl = document.getElementById('ansage');
+  const btnPruefen = document.getElementById('pruefen');
+  const btnLoesungen = document.getElementById('loesungen');
+  const btnNeu = document.getElementById('neu');
+  const auswahlOben = EINSTELLUNGEN.wortauswahlPosition === 'oben';
+  const wenigBewegung = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const luecken = []; // { nr, antworten, el, textEl, zeichen, wort, status: 'offen'|'richtig'|'falsch'|'geloest' }
+  const woerter = []; // { nr, text, el, slot, luecke }
+  let ausgewaehlt = null; // per Klick ausgewähltes Wort
+
+  const norm = s => s.trim().replace(/\s+/g, ' ');
+  const passt = (w, l) => l.antworten.some(a => norm(a) === norm(w.text));
+  const gesperrt = l => l.status === 'richtig' || l.status === 'geloest';
+  const ansage = text => { ansageEl.textContent = text; };
+
+  // ---------- Text mit Lücken aufbauen ----------
+  function lueckeErzeugen(antworten) {
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'luecke';
+    el.dataset.nr = luecken.length;
+    const textSpan = document.createElement('span');
+    const zeichen = document.createElement('span');
+    zeichen.className = 'zeichen';
+    zeichen.setAttribute('aria-hidden', 'true');
+    el.append(textSpan, zeichen);
+    el.addEventListener('animationend', () => el.classList.remove('gelandet'));
+    const l = { nr: luecken.length + 1, antworten, el, textEl: textSpan, zeichen, wort: null, status: 'offen' };
+    luecken.push(l);
+    return l;
+  }
+
+  // Setzt Text mit Lücken und Formatierung (z. B. <strong>) in ein Element ein
+  function inhaltEinsetzen(ziel, text) {
+    const neue = [];
+    ziel.innerHTML = text.replace(/\[([^\]]+)\]/g, (ganz, inhalt) => {
+      const antworten = inhalt.split('|').map(a => a.trim()).filter(Boolean);
+      if (antworten.length === 0) return ganz;
+      neue.push(lueckeErzeugen(antworten));
+      return '<span data-luecke="' + (neue.length - 1) + '"></span>';
+    });
+    ziel.querySelectorAll('span[data-luecke]').forEach(platz => {
+      platz.replaceWith(neue[Number(platz.dataset.luecke)].el);
+    });
+  }
+
+  // Text einlesen: Leerzeile = neuer Absatz, Zeile mit "- " = Aufzählungspunkt
+  const quelle = document.getElementById('lueckentext').textContent.trim();
+  quelle.split(/\n\s*\n/).forEach(block => {
+    let absatz = [];
+    let liste = null;
+    const absatzAbschliessen = () => {
+      if (absatz.length === 0) return;
+      const p = document.createElement('p');
+      inhaltEinsetzen(p, absatz.join(' ').replace(/\s+/g, ' '));
+      textEl.append(p);
+      absatz = [];
+    };
+    block.split('\n').forEach(zeile => {
+      const punkt = zeile.match(/^\s*[-•]\s+(.*)$/);
+      if (punkt) {
+        absatzAbschliessen();
+        if (!liste) { liste = document.createElement('ul'); textEl.append(liste); }
+        const li = document.createElement('li');
+        inhaltEinsetzen(li, punkt[1].trim());
+        liste.append(li);
+      } else if (zeile.trim()) {
+        liste = null;
+        absatz.push(zeile.trim());
+      }
+    });
+    absatzAbschliessen();
+  });
+
+  // ---------- Wortauswahl aufbauen ----------
+  const distraktoren = document.getElementById('distraktoren').textContent
+    .split('\n').map(w => w.trim()).filter(Boolean);
+  luecken.map(l => l.antworten[0]).concat(distraktoren).forEach((text, i) => {
+    const slot = document.createElement('li');
+    slot.className = 'slot';
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'wort';
+    el.textContent = text;
+    el.dataset.nr = i;
+    slot.append(el);
+    woerter.push({ nr: i, text, el, slot, luecke: null });
+  });
+  if (distraktoren.length === 0) {
+    document.getElementById('wortauswahl-titel').textContent = 'Diese Wörter gehören in die Lücken';
+  }
+
+  function wortauswahlOrdnen() {
+    const reihe = woerter.slice();
+    if (EINSTELLUNGEN.wortReihenfolge === 'alphabetisch') {
+      reihe.sort((a, b) => a.text.localeCompare(b.text, 'de'));
+    } else {
+      for (let i = reihe.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [reihe[i], reihe[j]] = [reihe[j], reihe[i]];
+      }
+    }
+    reihe.forEach(w => woerterEl.append(w.slot));
+  }
+  wortauswahlOrdnen();
+
+  auswahlEl.classList.add(auswahlOben ? 'oben' : 'unten');
+  if (auswahlOben) textEl.before(auswahlEl);
+  if (EINSTELLUNGEN.wortauswahlFixiert) {
+    auswahlEl.classList.add('fixiert');
+    // Damit beim Springen mit der Tab-Taste keine Lücke unter der Wortauswahl verschwindet
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(() => {
+        const abstand = auswahlEl.offsetHeight + 12 + 'px';
+        if (auswahlOben) wurzel.style.scrollPaddingTop = abstand;
+        else wurzel.style.scrollPaddingBottom = abstand;
+      }).observe(auswahlEl);
+    }
+  }
+
+  // ---------- Darstellung ----------
+  function darstellen() {
+    luecken.forEach(l => {
+      const el = l.el;
+      el.classList.remove('richtig', 'falsch', 'geloest');
+      if (l.status !== 'offen') el.classList.add(l.status);
+      el.classList.toggle('belegt', !!l.wort);
+      el.classList.toggle('gesperrt', gesperrt(l));
+      l.textEl.textContent = l.wort ? l.wort.text : '\u00a0';
+      l.zeichen.textContent = { richtig: '✓', falsch: '✗' }[l.status] || '';
+      const zusatz = { richtig: ', richtig', falsch: ', falsch', geloest: ', Lösung eingesetzt' }[l.status] || '';
+      el.setAttribute('aria-label', 'Lücke ' + l.nr + ': ' + (l.wort ? l.wort.text : 'leer') + zusatz);
+      el.setAttribute('aria-disabled', gesperrt(l) ? 'true' : 'false');
+    });
+    woerter.forEach(w => {
+      w.el.classList.toggle('platziert', !!w.luecke);
+      w.slot.classList.toggle('leer', !!w.luecke);
+      w.el.classList.toggle('ausgewaehlt', ausgewaehlt === w);
+      w.el.setAttribute('aria-pressed', String(ausgewaehlt === w));
+    });
+    wurzel.classList.toggle('auswahl-aktiv', !!ausgewaehlt);
+  }
+
+  // ---------- Wörter bewegen ----------
+  // Ein falsch markiertes Feld wird wieder neutral, sobald sich darin etwas ändert
+  function zuruecksetzen(l) { if (l && l.status === 'falsch') l.status = 'offen'; }
+
+  function wortEinsetzen(wort, luecke) {
+    if (gesperrt(luecke)) return;
+    const herkunft = wort.luecke;
+    if (herkunft === luecke) return;
+    const vorher = luecke.wort;
+    if (herkunft) herkunft.wort = null;
+    luecke.wort = wort;
+    wort.luecke = luecke;
+    if (vorher) {
+      // Kam das neue Wort aus einer anderen Lücke, tauschen die beiden Wörter die Plätze
+      vorher.luecke = herkunft || null;
+      if (herkunft) herkunft.wort = vorher;
+    }
+    zuruecksetzen(herkunft);
+    zuruecksetzen(luecke);
+    if (!wenigBewegung) {
+      luecke.el.classList.remove('gelandet');
+      void luecke.el.offsetWidth;
+      luecke.el.classList.add('gelandet');
+    }
+    darstellen();
+  }
+
+  function wortZurueck(wort) {
+    const l = wort.luecke;
+    if (!l || gesperrt(l)) return;
+    l.wort = null;
+    wort.luecke = null;
+    zuruecksetzen(l);
+    darstellen();
+  }
+
+  function auswahlAufheben() {
+    if (!ausgewaehlt) return;
+    ausgewaehlt = null;
+    darstellen();
+  }
+
+  function wortauswahlHinweisen() {
+    auswahlEl.classList.add('hinweis');
+    clearTimeout(wortauswahlHinweisen.t);
+    wortauswahlHinweisen.t = setTimeout(() => auswahlEl.classList.remove('hinweis'), 900);
+    ansage('Wähle zuerst ein Wort aus der Wortauswahl.');
+  }
+
+  // ---------- Klicken / Tippen / Tastatur ----------
+  // Verhindert, dass nach dem Ziehen zusätzlich ein Klick auf das gezogene Element ausgelöst wird
+  let klickSperre = { el: null, bis: 0 };
+
+  function wortAngeklickt(w, perTastatur) {
+    if (w.luecke) return;
+    if (ausgewaehlt === w) { auswahlAufheben(); return; }
+    ausgewaehlt = w;
+    darstellen();
+    if (perTastatur) {
+      const ziel = luecken.find(l => !l.wort && !gesperrt(l)) || luecken.find(l => !gesperrt(l));
+      if (ziel) ziel.el.focus();
+      ansage('„' + w.text + '“ ausgewählt. Wähle jetzt eine Lücke.');
+    }
+  }
+
+  function lueckeAngeklickt(l, perTastatur) {
+    if (gesperrt(l)) return;
+    if (ausgewaehlt) {
+      const w = ausgewaehlt;
+      ausgewaehlt = null;
+      wortEinsetzen(w, l);
+      ansage('„' + w.text + '“ in Lücke ' + l.nr + ' eingesetzt.');
+      if (perTastatur) {
+        const naechstes = [...woerterEl.children].map(s => woerter[s.firstChild.dataset.nr]).find(x => !x.luecke);
+        if (naechstes) naechstes.el.focus();
+        else if (!btnPruefen.hidden) btnPruefen.focus();
+      }
+      return;
+    }
+    if (l.wort) {
+      const w = l.wort;
+      wortZurueck(w);
+      ansage('„' + w.text + '“ zurück in die Wortauswahl gelegt.');
+      return;
+    }
+    wortauswahlHinweisen();
+  }
+
+  document.querySelector('main').addEventListener('click', e => {
+    if (klickSperre.el && klickSperre.el.contains(e.target) && performance.now() < klickSperre.bis) return;
+    const perTastatur = e.detail === 0;
+    const wortEl = e.target.closest('.wort');
+    if (wortEl) { wortAngeklickt(woerter[wortEl.dataset.nr], perTastatur); return; }
+    const lueckeEl = e.target.closest('.luecke');
+    if (lueckeEl) { lueckeAngeklickt(luecken[lueckeEl.dataset.nr], perTastatur); }
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (zug) zugBeenden(false);
+    else auswahlAufheben();
+  });
+
+  // ---------- Ziehen und Ablegen (Maus, Finger, Stift) ----------
+  let zug = null;
+
+  document.addEventListener('pointerdown', e => {
+    if (zug || !e.isPrimary) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const el = e.target.closest('.wort, .luecke');
+    if (!el) return;
+    let wort;
+    if (el.classList.contains('wort')) {
+      wort = woerter[el.dataset.nr];
+      if (wort.luecke) return;
+    } else {
+      const l = luecken[el.dataset.nr];
+      if (!l.wort || gesperrt(l)) return;
+      wort = l.wort;
+    }
+    zug = { wort, el, id: e.pointerId, typ: e.pointerType, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, aktiv: false, ziel: null };
+    try { el.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+
+  document.addEventListener('pointermove', e => {
+    if (!zug || e.pointerId !== zug.id) return;
+    zug.x = e.clientX;
+    zug.y = e.clientY;
+    if (!zug.aktiv) {
+      const schwelle = zug.typ === 'mouse' ? 5 : 8;
+      if (Math.hypot(zug.x - zug.startX, zug.y - zug.startY) < schwelle) return;
+      zugStarten();
+    }
+    e.preventDefault();
+    geistBewegen();
+    zielAktualisieren();
+  });
+
+  document.addEventListener('pointerup', e => {
+    if (!zug || e.pointerId !== zug.id) return;
+    if (zug.aktiv) { zug.x = e.clientX; zug.y = e.clientY; zielAktualisieren(); }
+    zugBeenden(true);
+  });
+  document.addEventListener('pointercancel', e => {
+    if (zug && e.pointerId === zug.id) zugBeenden(false);
+  });
+  document.addEventListener('lostpointercapture', e => {
+    if (zug && e.pointerId === zug.id) zugBeenden(false);
+  });
+  // Fallback für ältere Mobilbrowser: Seite nicht scrollen, während ein Wort gezogen wird
+  document.addEventListener('touchmove', e => { if (zug) e.preventDefault(); }, { passive: false });
+
+  function zugStarten() {
+    zug.aktiv = true;
+    auswahlAufheben();
+    const r = zug.el.getBoundingClientRect();
+    const geist = document.createElement('div');
+    geist.className = 'geist';
+    geist.setAttribute('aria-hidden', 'true');
+    geist.textContent = zug.wort.text;
+    geist.style.fontSize = getComputedStyle(zug.el).fontSize;
+    document.body.append(geist);
+    const g = geist.getBoundingClientRect();
+    zug.geist = geist;
+    zug.gB = g.width;
+    zug.gH = g.height;
+    if (zug.typ === 'touch') {
+      // Auf dem Handy schwebt das Wort über dem Finger, damit es sichtbar bleibt
+      zug.offX = g.width / 2;
+      zug.offY = g.height + 14;
+    } else {
+      zug.offX = Math.min(Math.max(zug.startX - r.left, 0), g.width);
+      zug.offY = Math.min(Math.max(zug.startY - r.top, 0), g.height);
+    }
+    zug.el.classList.add('quelle');
+    wurzel.classList.add('ziehen');
+    requestAnimationFrame(autoScrollen);
+  }
+
+  function geistBewegen() {
+    zug.geist.style.transform = 'translate(' + (zug.x - zug.offX) + 'px,' + (zug.y - zug.offY) + 'px)';
+  }
+
+  // Punkt, an dem abgelegt wird: Mauszeiger bzw. Mitte des Wortes über dem Finger
+  function ablagepunkt() {
+    if (zug.typ === 'touch') return { x: zug.x - zug.offX + zug.gB / 2, y: zug.y - zug.offY + zug.gH / 2 };
+    return { x: zug.x, y: zug.y };
+  }
+
+  function zielFinden(x, y) {
+    const treffer = document.elementFromPoint(x, y);
+    if (treffer) {
+      if (treffer.closest('.wortauswahl')) return 'auswahl';
+      const lEl = treffer.closest('.luecke');
+      if (lEl) {
+        const l = luecken[lEl.dataset.nr];
+        return gesperrt(l) ? null : l;
+      }
+    }
+    // Etwas Toleranz: nächste Lücke in der Nähe des Ablagepunkts
+    let beste = null, besterAbstand = 22;
+    luecken.forEach(l => {
+      if (gesperrt(l)) return;
+      const r = l.el.getBoundingClientRect();
+      const dx = Math.max(r.left - x, 0, x - r.right);
+      const dy = Math.max(r.top - y, 0, y - r.bottom);
+      const d = Math.hypot(dx, dy);
+      if (d < besterAbstand) { beste = l; besterAbstand = d; }
+    });
+    return beste;
+  }
+
+  function zielAktualisieren() {
+    const p = ablagepunkt();
+    let ziel = zielFinden(p.x, p.y);
+    if (ziel === zug.wort.luecke) ziel = null;            // eigene Lücke
+    if (ziel === 'auswahl' && !zug.wort.luecke) ziel = null; // Wort liegt schon in der Auswahl
+    if (ziel === zug.ziel) return;
+    zielMarkieren(zug.ziel, false);
+    zug.ziel = ziel;
+    zielMarkieren(ziel, true);
+  }
+
+  function zielMarkieren(ziel, an) {
+    if (!ziel) return;
+    (ziel === 'auswahl' ? auswahlEl : ziel.el).classList.toggle('ziel', an);
+  }
+
+  function zugBeenden(ablegen) {
+    const z = zug;
+    zug = null;
+    if (!z) return;
+    try { z.el.releasePointerCapture(z.id); } catch (_) {}
+    if (!z.aktiv) return; // war nur ein Klick bzw. Antippen
+    klickSperre = { el: z.el, bis: performance.now() + 400 };
+    zielMarkieren(z.ziel, false);
+    z.geist.remove();
+    z.el.classList.remove('quelle');
+    wurzel.classList.remove('ziehen');
+    if (!ablegen || !z.ziel) return;
+    if (z.ziel === 'auswahl') {
+      wortZurueck(z.wort);
+      ansage('„' + z.wort.text + '“ zurück in die Wortauswahl gelegt.');
+    } else {
+      wortEinsetzen(z.wort, z.ziel);
+      ansage('„' + z.wort.text + '“ in Lücke ' + z.ziel.nr + ' eingesetzt.');
+    }
+  }
+
+  // Seite scrollt mit, wenn man ein Wort an den oberen oder unteren Rand zieht
+  function autoScrollen() {
+    if (!zug || !zug.aktiv) return;
+    const zone = 60, maxTempo = 18, y = zug.y;
+    let oben = 0, unten = window.innerHeight;
+    let obenBegrenzt = false, untenBegrenzt = false; // Rand wird von der Wortauswahl gebildet
+    if (EINSTELLUNGEN.wortauswahlFixiert) {
+      const r = auswahlEl.getBoundingClientRect();
+      if (auswahlOben && r.bottom > 0) { oben = Math.min(r.bottom, unten - 2 * zone); obenBegrenzt = true; }
+      if (!auswahlOben && r.top < unten) { unten = Math.max(r.top, 2 * zone); untenBegrenzt = true; }
+    }
+    // Ein Rand scrollt erst, wenn der Zeiger zwischendurch im Text war. So scrollt die Seite
+    // nicht ungewollt, wenn man ein Wort aus der Wortauswahl nur am Rand vorbei nach oben zieht.
+    if (y >= oben + zone) zug.obenScharf = true;
+    if (y <= unten - zone) zug.untenScharf = true;
+    let tempo = 0;
+    if (zug.obenScharf && y < oben + zone && !(obenBegrenzt && y < oben)) {
+      tempo = -maxTempo * Math.min(1, (oben + zone - y) / zone);
+    } else if (zug.untenScharf && y > unten - zone && !(untenBegrenzt && y > unten)) {
+      tempo = maxTempo * Math.min(1, (y - (unten - zone)) / zone);
+    }
+    if (tempo) {
+      const vorher = window.scrollY;
+      window.scrollBy(0, tempo);
+      if (window.scrollY !== vorher) zielAktualisieren();
+    }
+    requestAnimationFrame(autoScrollen);
+  }
+
+  // ---------- Auswerten ----------
+  function pruefen(perTastatur) {
+    auswahlAufheben();
+    luecken.forEach(l => {
+      if (gesperrt(l)) return;
+      l.status = l.wort && passt(l.wort, l) ? 'richtig' : 'falsch';
+    });
+    darstellen();
+
+    const gesamt = luecken.length;
+    const richtig = luecken.filter(l => l.status === 'richtig').length;
+    const falsche = luecken.filter(l => l.status === 'falsch');
+
+    if (falsche.length === 0) {
+      ergebnisEl.textContent = richtig === gesamt
+        ? `Alle ${gesamt} Lücken richtig ausgefüllt. Sehr gut!`
+        : `${richtig} von ${gesamt} Lücken selbst gelöst.`;
+      btnPruefen.hidden = true;
+      btnLoesungen.hidden = true;
+      btnNeu.hidden = false;
+      if (perTastatur) btnNeu.focus();
+      return;
+    }
+
+    const leer = falsche.filter(l => !l.wort).length;
+    const falschBelegt = falsche.length - leer;
+    const teile = [];
+    if (falschBelegt) teile.push(falschBelegt === 1 ? 'tausche das rot markierte Wort aus' : 'tausche die rot markierten Wörter aus');
+    if (leer) teile.push(leer === 1 ? 'fülle die leere Lücke' : `fülle die ${leer} leeren Lücken`);
+    let satz = teile.join(', ') + ' und prüfe dann erneut.';
+    satz = satz.charAt(0).toUpperCase() + satz.slice(1);
+    ergebnisEl.textContent = `${richtig} von ${gesamt} Lücken richtig. ${satz}`;
+    btnPruefen.textContent = 'Erneut prüfen';
+    btnLoesungen.hidden = !EINSTELLUNGEN.loesungenAnzeigenErlaubt;
+    btnNeu.hidden = false;
+    if (perTastatur) falsche[0].el.focus();
+  }
+
+  function loesungenAnzeigen() {
+    auswahlAufheben();
+    const offen = luecken.filter(l => l.status !== 'richtig');
+    offen.forEach(l => { if (l.wort) { l.wort.luecke = null; l.wort = null; } });
+    const frei = () => woerter.filter(w => !w.luecke);
+    // Zuerst das Wort einsetzen, das genau zur Lücke gehört, danach Alternativen
+    offen.forEach(l => {
+      const w = frei().find(w => norm(w.text) === norm(l.antworten[0]));
+      if (w) { l.wort = w; w.luecke = l; }
+    });
+    offen.forEach(l => {
+      if (l.wort) return;
+      const w = frei().find(w => passt(w, l));
+      if (w) { l.wort = w; w.luecke = l; }
+    });
+    offen.forEach(l => { l.status = 'geloest'; });
+    darstellen();
+    const richtig = luecken.filter(l => l.status === 'richtig').length;
+    ergebnisEl.textContent = `${richtig} von ${luecken.length} Lücken selbst gelöst. Die gelb markierten Lücken zeigen die Lösung.`;
+    btnPruefen.hidden = true;
+    btnLoesungen.hidden = true;
+    btnNeu.hidden = false;
+  }
+
+  function neuBeginnen() {
+    ausgewaehlt = null;
+    luecken.forEach(l => { l.wort = null; l.status = 'offen'; });
+    woerter.forEach(w => { w.luecke = null; });
+    wortauswahlOrdnen();
+    darstellen();
+    ergebnisEl.textContent = '';
+    btnPruefen.textContent = 'Antworten prüfen';
+    btnPruefen.hidden = false;
+    btnLoesungen.hidden = true;
+    btnNeu.hidden = true;
+  }
+
+  // Auf dem Handy innerhalb von Genially: Link zum Öffnen in eigenem Fenster anzeigen
+  (function () {
+    const eingebettet = window.self !== window.top;
+    const kleinerBildschirm = Math.min(screen.width, screen.height) < 600;
+    if (eingebettet && kleinerBildschirm) {
+      const link = document.getElementById('extern');
+      link.href = location.href;
+      link.hidden = false;
+    }
+  })();
+
+  btnPruefen.addEventListener('click', e => pruefen(e.detail === 0));
+  btnLoesungen.addEventListener('click', loesungenAnzeigen);
+  btnNeu.addEventListener('click', neuBeginnen);
+
+  darstellen();
+</script>
+</body>
+</html>
