@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verschlusszeit: lang oder kurz?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<script>if (window.self !== window.top) document.documentElement.classList.add('eingebettet');</script>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #161B22;              /* Hintergrund, wenn die Übung direkt im Browser geöffnet wird */
+    --bg-im-rahmen: transparent; /* Hintergrund, wenn die Übung in Genially eingebettet ist */
+    --max-breite: none;         /* none = volle Breite des Rahmens; z. B. 46rem = schmalerer Block */
+    --bild-hoehe: clamp(9rem, 36vh, 17rem); /* maximale Höhe der Fotos (kleine Fotos werden nie vergrößert) */
+    --ink: #E6EBF0;
+    --muted: #9AA7B3;
+    --line: #2E3843;
+    --field: #212933;
+    --field-line: #3D4957;
+    --chip: #2B3541;            /* Antwortknöpfe */
+    --accent: #5BB8C4;
+    --accent-bg: rgba(91, 184, 196, .18);
+    --ok: #7EDDA3;   --ok-bg: rgba(92, 201, 138, .14);
+    --bad: #FF8F84;  --bad-bg: rgba(240, 122, 110, .15);
+    --sol: #F0CD6E;  --sol-bg: rgba(232, 193, 90, .14);
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  /* Schriftgröße wächst mit der Breite des Rahmens mit */
+  html { font-size: clamp(15px, 0.9vw + 9px, 22px); }
+  html.eingebettet, html.eingebettet body { background: var(--bg-im-rahmen); }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  body { padding: clamp(16px, 4vw, 40px); }
+  main { max-width: var(--max-breite); margin: 0 auto; }
+
+  h1 { font-size: 1.5rem; line-height: 1.25; margin: 0 0 .4rem; font-weight: 700; letter-spacing: .005em; }
+  .anleitung { color: var(--muted); margin: 0 0 1.5rem; line-height: 1.5; }
+
+  /* ---------- Fortschritt ---------- */
+  .fortschritt { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem 1rem; margin: 0 0 1rem; }
+  .schritt { margin: 0; font-size: .95rem; font-weight: 700; color: var(--muted); }
+  .schritt:focus { outline: none; }
+  .balken { list-style: none; margin: 0; padding: 0; display: flex; gap: .35rem; }
+  .balken li { width: 2rem; height: .3rem; border-radius: 99px; background: var(--line); transition: background-color .2s; }
+  .balken li.an { background: var(--accent); }
+
+  /* ---------- Eine Seite = ein Bildpaar ---------- */
+  .seite { display: flex; flex-direction: column; gap: 1rem; }
+
+  .frage {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem 1.75rem;
+    padding: 1rem;
+    background: var(--field);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    outline: 2px solid transparent;
+    outline-offset: -2px;
+    transition: outline-color .2s;
+  }
+  .frage.hinweis { outline-color: var(--accent); }
+
+  .bild { position: relative; margin: 0; flex: 0 1 auto; max-width: 100%; }
+  .bild img {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: var(--bild-hoehe);
+    border-radius: 6px;
+    background: var(--chip);
+  }
+  .marke {
+    position: absolute;
+    top: .45rem;
+    left: .45rem;
+    padding: .1rem .5rem;
+    font-size: .85rem;
+    font-weight: 700;
+    line-height: 1.4;
+    color: var(--ink);
+    background: rgba(13, 17, 23, .78);
+    border-radius: 4px;
+    pointer-events: none;
+  }
+  /* Falls ein Bild nicht gefunden wird, steht hier der gesuchte Dateiname */
+  .bild.kaputt img, .bild.kaputt .marke { display: none; }
+  .bild.kaputt::after {
+    content: "Bild nicht gefunden: " attr(data-datei);
+    display: block;
+    min-width: 12rem;
+    padding: 1.5rem 1rem;
+    font-size: .9rem;
+    color: var(--bad);
+    border: 1px dashed var(--bad);
+    border-radius: 6px;
+  }
+
+  .antwortbereich { flex: 1 1 13rem; }
+  .frage-text { font-size: 1.125rem; margin: 0 0 .7rem; line-height: 1.4; }
+  .optionen { display: flex; flex-wrap: wrap; gap: .6rem; }
+
+  .option {
+    font: inherit;
+    font-size: 1.05rem;
+    color: var(--ink);
+    min-width: 5.5em;
+    padding: .5rem 1rem;
+    line-height: 1.4;
+    background: var(--chip);
+    border: 1px solid var(--field-line);
+    border-radius: 6px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color .15s, border-color .15s, color .15s, opacity .15s;
+  }
+  .option:not(.gesperrt):hover { border-color: var(--accent); }
+  .option.gewaehlt { background: var(--accent-bg); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .option.richtig  { background: var(--ok-bg);  border: 1px solid var(--ok);  color: var(--ok); }
+  .option.falsch   { background: var(--bad-bg); border: 1px solid var(--bad); color: var(--bad); }
+  .option.geloest  { background: var(--sol-bg); border: 1px dashed var(--sol); color: var(--sol); }
+  .option.gesperrt { cursor: default; }
+  .option.gesperrt:not(.richtig):not(.geloest) { opacity: .4; }
+  .option:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .zeichen { font-weight: 700; margin-left: .35em; }
+  .zeichen:empty { display: none; }
+
+  .erklaerung { margin: .8rem 0 0; color: var(--muted); font-size: .95rem; line-height: 1.5; }
+  .erklaerung:empty { display: none; }
+
+  /* ---------- Endauswertung ---------- */
+  .ende h2 { font-size: 1.15rem; margin: 0 0 1rem; }
+  .punktzahl { display: flex; align-items: baseline; flex-wrap: wrap; gap: .2rem .6rem; margin: 0 0 .5rem; }
+  .punktzahl .zahl { font-size: 2.2rem; font-weight: 700; color: var(--accent); line-height: 1.1; }
+  .punktzahl .zahl-text { font-size: 1.05rem; }
+  .bewertung { margin: 0 0 1.5rem; line-height: 1.5; }
+  .legende { margin: 0 0 .8rem; color: var(--muted); font-size: .9rem; line-height: 1.5; }
+
+  .rueckblick { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .8rem; }
+  .rueckblick > li {
+    padding: .8rem .9rem .9rem;
+    background: var(--field);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  .rueckblick h3 { font-size: .9rem; font-weight: 700; color: var(--muted); margin: 0 0 .6rem; }
+  .minis { display: flex; gap: .7rem; }
+  .mini { margin: 0; }
+  .mini img { display: block; height: 5.5rem; width: auto; max-width: 100%; border-radius: 4px; background: var(--chip); }
+  .mini figcaption { display: flex; justify-content: space-between; gap: .4rem; margin-top: .35rem; font-size: .9rem; }
+  .mini .ok  { color: var(--ok);  font-weight: 700; }
+  .mini .bad { color: var(--bad); font-weight: 700; }
+
+  .merksatz {
+    margin: 1.5rem 0 0;
+    padding: .9rem 1rem;
+    border-left: 3px solid var(--accent);
+    background: var(--accent-bg);
+    border-radius: 0 8px 8px 0;
+    line-height: 1.5;
+  }
+  .merksatz strong { display: block; margin-bottom: .2rem; }
+
+  /* ---------- Wie beim Lückentext ---------- */
+  .extern { display: inline-block; margin: 0 0 1.5rem; color: var(--accent); font-weight: 700; text-underline-offset: 3px; }
+  .extern:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 2px; }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+  .auswertung { margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+  .ergebnis { margin: 0 0 1rem; font-size: 1.05rem; line-height: 1.5; }
+  .ergebnis:empty { display: none; }
+  .knoepfe { display: flex; flex-wrap: wrap; gap: .6rem; }
+
+  .knoepfe button {
+    font: inherit;
+    font-size: 1rem;
+    padding: .6rem 1.1rem;
+    border-radius: 6px;
+    border: 1px solid var(--accent);
+    cursor: pointer;
+    transition: background-color .15s, color .15s;
+  }
+  .primaer   { background: var(--accent); color: #0D1F23; font-weight: 700; }
+  .primaer:hover { background: #74C8D3; border-color: #74C8D3; }
+  .sekundaer { background: transparent; color: var(--accent); }
+  .sekundaer:hover { background: rgba(91, 184, 196, .12); }
+  .knoepfe button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .option, .frage, .balken li, .knoepfe button { transition: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+  <!-- ====== HIER ANPASSEN: Überschrift und Arbeitsanweisung ====== -->
+  <h1>Verschlusszeit: lang oder kurz?</h1>
+  <p class="anleitung">Schau dir jedes Foto genau an: War die Verschlusszeit lang oder kurz? Wähle für beide Bilder eine Antwort und prüfe sie. Danach geht es zum nächsten Bildpaar.</p>
+  <a class="extern" id="extern" href="#" target="_blank" rel="noopener" hidden>Übung in eigenem Fenster öffnen</a>
+
+  <div class="fortschritt">
+    <p class="schritt" id="schritt" tabindex="-1"></p>
+    <ol class="balken" id="balken" aria-hidden="true"></ol>
+  </div>
+
+  <div id="seiten"></div>
+  <section class="ende" id="ende" hidden></section>
+
+  <div class="auswertung">
+    <p class="ergebnis" id="ergebnis" aria-live="polite"></p>
+    <div class="knoepfe">
+      <button type="button" class="primaer" id="pruefen">Antworten prüfen</button>
+      <button type="button" class="sekundaer" id="loesungen" hidden>Lösung anzeigen</button>
+      <button type="button" class="sekundaer" id="weiter" hidden>Weiter</button>
+      <button type="button" class="primaer" id="neu" hidden>Von vorn beginnen</button>
+    </div>
+  </div>
+  <p class="sr-only" id="ansage" aria-live="polite"></p>
+
+</main>
+
+<script>
+  // ====== HIER ANPASSEN: Inhalte ======
+
+  // Frage, die neben jedem Bild steht
+  const FRAGE = 'Die Verschlusszeit war:';
+
+  // Antwortknöpfe, in dieser Reihenfolge
+  const ANTWORTEN = ['lang', 'kurz'];
+
+  // Bildpaare: Jede Zeile [ ... ] ist eine Seite der Übung.
+  // Pro Bild: Dateiname und richtige Antwort (scharfes Bild = 'kurz', unscharfes Bild = 'lang').
+  // Die Bilder liegen im selben Ordner wie diese HTML-Datei. Leerzeichen im Dateinamen sind kein Problem.
+  const BILDPAARE = [
+    [ { bild: 'f1 scharf.png', loesung: 'kurz' }, { bild: 'f1 unscharf.png', loesung: 'lang' } ],
+    [ { bild: 'f2 scharf.png', loesung: 'kurz' }, { bild: 'f2 unscharf.png', loesung: 'lang' } ],
+    [ { bild: 'f3 scharf.png', loesung: 'kurz' }, { bild: 'f3 unscharf.png', loesung: 'lang' } ]
+  ];
+
+  // Kurze Erklärung unter der Antwort, sobald ein Bild gelöst ist ('' = keine Erklärung)
+  const ERKLAERUNGEN = {
+    kurz: 'Kurze Verschlusszeit: Die Bewegung wird eingefroren, das Bild ist scharf.',
+    lang: 'Lange Verschlusszeit: Bewegungen von Motiv oder Kamera verwischen, das Bild wird unscharf.'
+  };
+
+  // Merksatz am Ende der Auswertung ('' = kein Merksatz)
+  const MERKSATZ = 'Je kürzer die Verschlusszeit, desto eher wird eine Bewegung eingefroren. Je länger sie ist, desto stärker verwischen bewegte Motive – und aus der Hand fotografiert auch das ganze Bild durch Verwackeln.';
+
+  // ====== HIER ANPASSEN: Einstellungen ======
+  const EINSTELLUNGEN = {
+    loesungenAnzeigenErlaubt: true, // false = Knopf "Lösung anzeigen" erscheint nie
+    // 'zufall' = die Bilder eines Paares stehen in zufälliger Reihenfolge untereinander
+    // 'fest'   = Reihenfolge wie oben in BILDPAARE
+    bildReihenfolge: 'zufall'
+  };
+
+  // ---------- Ab hier nichts mehr ändern nötig ----------
+  const seitenEl = document.getElementById('seiten');
+  const endeEl = document.getElementById('ende');
+  const schrittEl = document.getElementById('schritt');
+  const balkenEl = document.getElementById('balken');
+  const ergebnisEl = document.getElementById('ergebnis');
+  const ansageEl = document.getElementById('ansage');
+  const btnPruefen = document.getElementById('pruefen');
+  const btnLoesungen = document.getElementById('loesungen');
+  const btnWeiter = document.getElementById('weiter');
+  const btnNeu = document.getElementById('neu');
+
+  const seiten = []; // { nr, el, fragen, geprueft }
+  let aktuell = 0;   // Index der angezeigten Seite; seiten.length = Endauswertung
+
+  const gesperrt = f => f.status === 'richtig' || f.status === 'geloest';
+  const ansage = text => { ansageEl.textContent = text; };
+  const alleWort = n => n === 2 ? 'Beide' : 'Alle ' + n;
+  const element = (tag, klasse, text) => {
+    const el = document.createElement(tag);
+    if (klasse) el.className = klasse;
+    if (text !== undefined) el.textContent = text;
+    return el;
+  };
+  function mischen(liste) {
+    for (let i = liste.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [liste[i], liste[j]] = [liste[j], liste[i]];
+    }
+    return liste;
+  }
+
+  // ---------- Seiten aufbauen ----------
+  function frageErzeugen(seite, eintrag) {
+    if (!ANTWORTEN.includes(eintrag.loesung)) {
+      console.warn('Lösung "' + eintrag.loesung + '" bei ' + eintrag.bild + ' ist keine der ANTWORTEN.');
+    }
+    const el = element('div', 'frage');
+    const fig = element('figure', 'bild');
+    const marke = element('span', 'marke');
+    marke.setAttribute('aria-hidden', 'true');
+    const img = element('img');
+    img.decoding = 'async';
+    img.addEventListener('error', () => { fig.classList.add('kaputt'); fig.dataset.datei = eintrag.bild; });
+    img.src = encodeURI(eintrag.bild);
+    fig.append(marke, img);
+
+    const bereich = element('div', 'antwortbereich');
+    const frageText = element('p', 'frage-text', FRAGE);
+    frageText.setAttribute('aria-hidden', 'true');
+    const gruppe = element('div', 'optionen');
+    gruppe.setAttribute('role', 'group');
+    const knoepfe = {};
+    ANTWORTEN.forEach(antwort => {
+      const b = element('button', 'option');
+      b.type = 'button';
+      b.dataset.antwort = antwort;
+      const zeichen = element('span', 'zeichen');
+      zeichen.setAttribute('aria-hidden', 'true');
+      b.append(element('span', '', antwort), zeichen);
+      gruppe.append(b);
+      knoepfe[antwort] = { el: b, zeichen };
+    });
+    const erklaerung = element('p', 'erklaerung');
+    bereich.append(frageText, gruppe, erklaerung);
+    el.append(fig, bereich);
+
+    const f = { seite, bild: eintrag.bild, loesung: eintrag.loesung, wahl: null, status: 'offen',
+                ersterVersuch: null, buchstabe: '', el, marke, img, gruppe, knoepfe, erklaerung };
+    gruppe.addEventListener('click', e => {
+      const b = e.target.closest('.option');
+      if (b) waehlen(f, b.dataset.antwort);
+    });
+    return f;
+  }
+
+  // Reihenfolge der Bilder auf einer Seite festlegen und Bilder mit A, B, … beschriften
+  function seiteOrdnen(seite) {
+    if (EINSTELLUNGEN.bildReihenfolge === 'zufall') mischen(seite.fragen);
+    seite.fragen.forEach((f, i) => {
+      f.buchstabe = String.fromCharCode(65 + i);
+      f.marke.textContent = f.buchstabe;
+      f.img.alt = 'Bildpaar ' + seite.nr + ', Bild ' + f.buchstabe;
+      f.gruppe.setAttribute('aria-label', 'Bild ' + f.buchstabe + ': ' + FRAGE);
+      seite.el.append(f.el);
+    });
+  }
+
+  BILDPAARE.forEach((paar, i) => {
+    const seite = { nr: i + 1, el: element('section', 'seite'), fragen: [], geprueft: false };
+    seite.el.setAttribute('aria-label', 'Bildpaar ' + seite.nr);
+    seite.el.hidden = true;
+    paar.forEach(eintrag => seite.fragen.push(frageErzeugen(seite, eintrag)));
+    seiteOrdnen(seite);
+    seitenEl.append(seite.el);
+    seiten.push(seite);
+    balkenEl.append(element('li'));
+  });
+
+  // ---------- Darstellung ----------
+  function frageDarstellen(f) {
+    const zu = gesperrt(f);
+    ANTWORTEN.forEach(antwort => {
+      const { el, zeichen } = f.knoepfe[antwort];
+      const gewaehlt = f.wahl === antwort;
+      el.className = 'option';
+      if (gewaehlt) el.classList.add(f.status === 'offen' ? 'gewaehlt' : f.status);
+      if (zu) el.classList.add('gesperrt');
+      zeichen.textContent = gewaehlt ? ({ richtig: '✓', falsch: '✗' }[f.status] || '') : '';
+      const zusatz = gewaehlt ? ({ richtig: ', richtig', falsch: ', falsch', geloest: ', Lösung' }[f.status] || '') : '';
+      el.setAttribute('aria-label', antwort + zusatz);
+      el.setAttribute('aria-pressed', String(gewaehlt));
+      el.setAttribute('aria-disabled', String(zu));
+    });
+    f.erklaerung.textContent = zu ? (ERKLAERUNGEN[f.loesung] || '') : '';
+  }
+
+  function steuerungAktualisieren() {
+    const ende = aktuell >= seiten.length;
+    btnNeu.hidden = !ende;
+    if (ende) {
+      btnPruefen.hidden = btnLoesungen.hidden = btnWeiter.hidden = true;
+      return;
+    }
+    const seite = seiten[aktuell];
+    const erledigt = seite.fragen.every(gesperrt);
+    btnPruefen.hidden = erledigt;
+    btnPruefen.textContent = seite.geprueft ? 'Erneut prüfen' : 'Antworten prüfen';
+    btnLoesungen.hidden = !EINSTELLUNGEN.loesungenAnzeigenErlaubt || !seite.geprueft || erledigt;
+    btnWeiter.hidden = !seite.geprueft;
+    btnWeiter.textContent = aktuell === seiten.length - 1 ? 'Zur Auswertung' : 'Weiter zu Bildpaar ' + (aktuell + 2);
+    btnWeiter.className = erledigt ? 'primaer' : 'sekundaer';
+  }
+
+  function ansichtAktualisieren() {
+    const ende = aktuell >= seiten.length;
+    seiten.forEach((s, i) => { s.el.hidden = i !== aktuell; });
+    endeEl.hidden = !ende;
+    schrittEl.textContent = ende ? 'Auswertung' : 'Bildpaar ' + (aktuell + 1) + ' von ' + seiten.length;
+    [...balkenEl.children].forEach((li, i) => li.classList.toggle('an', i <= aktuell));
+    if (!ende) seiten[aktuell].fragen.forEach(frageDarstellen);
+    steuerungAktualisieren();
+  }
+
+  // ---------- Antworten wählen ----------
+  function waehlen(f, antwort) {
+    if (gesperrt(f) || f.wahl === antwort) return;
+    f.wahl = antwort;
+    if (f.status === 'falsch') f.status = 'offen'; // rot markierte Antwort wird geändert
+    f.el.classList.remove('hinweis');
+    frageDarstellen(f);
+  }
+
+  // ---------- Prüfen ----------
+  function pruefen(perTastatur) {
+    const seite = seiten[aktuell];
+    const n = seite.fragen.length;
+    const offen = seite.fragen.filter(f => !gesperrt(f));
+    const ohneAntwort = offen.filter(f => !f.wahl);
+    if (ohneAntwort.length) {
+      ohneAntwort.forEach(f => f.el.classList.add('hinweis'));
+      ergebnisEl.textContent = ohneAntwort.length === 1
+        ? 'Wähle zuerst auch für Bild ' + ohneAntwort[0].buchstabe + ' eine Antwort.'
+        : 'Wähle zuerst für ' + (n === 2 ? 'beide Bilder' : 'jedes Bild') + ' eine Antwort.';
+      if (perTastatur) ohneAntwort[0].knoepfe[ANTWORTEN[0]].el.focus();
+      return;
+    }
+
+    offen.forEach(f => {
+      f.status = f.wahl === f.loesung ? 'richtig' : 'falsch';
+      if (f.ersterVersuch === null) f.ersterVersuch = f.status === 'richtig';
+    });
+    seite.geprueft = true;
+    seite.fragen.forEach(frageDarstellen);
+
+    const richtig = seite.fragen.filter(f => f.status === 'richtig').length;
+    const falsche = seite.fragen.filter(f => f.status === 'falsch');
+    if (falsche.length === 0) {
+      ergebnisEl.textContent = seite.fragen.every(f => f.ersterVersuch)
+        ? alleWort(n) + ' Antworten richtig. Sehr gut!'
+        : 'Jetzt stimmen ' + alleWort(n).toLowerCase() + ' Antworten.';
+    } else {
+      let satz = richtig + ' von ' + n + ' richtig. '
+        + (falsche.length === 1 ? 'Ändere die rot markierte Antwort und prüfe erneut' : 'Ändere die rot markierten Antworten und prüfe erneut');
+      satz += EINSTELLUNGEN.loesungenAnzeigenErlaubt ? ' – oder lass dir die Lösung anzeigen.' : '.';
+      ergebnisEl.textContent = satz;
+    }
+    steuerungAktualisieren();
+    if (perTastatur) {
+      if (falsche.length) falsche[0].knoepfe[falsche[0].wahl].el.focus();
+      else btnWeiter.focus();
+    }
+  }
+
+  function loesungAnzeigen() {
+    const seite = seiten[aktuell];
+    const offen = seite.fragen.filter(f => !gesperrt(f));
+    offen.forEach(f => { f.wahl = f.loesung; f.status = 'geloest'; });
+    seite.fragen.forEach(frageDarstellen);
+    ergebnisEl.textContent = offen.length === 1
+      ? 'Die gelb markierte Antwort zeigt die Lösung.'
+      : 'Die gelb markierten Antworten zeigen die Lösung.';
+    steuerungAktualisieren();
+  }
+
+  // ---------- Weiter / Endauswertung ----------
+  function weiter() {
+    aktuell++;
+    ergebnisEl.textContent = '';
+    if (aktuell >= seiten.length) auswertungAufbauen();
+    ansichtAktualisieren();
+    window.scrollTo(0, 0);
+    schrittEl.focus({ preventScroll: true });
+  }
+
+  function auswertungAufbauen() {
+    const alle = seiten.flatMap(s => s.fragen);
+    const gesamt = alle.length;
+    const richtig = alle.filter(f => f.ersterVersuch).length;
+    endeEl.replaceChildren();
+
+    const punktzahl = element('p', 'punktzahl');
+    punktzahl.append(element('span', 'zahl', richtig + ' von ' + gesamt),
+                     element('span', 'zahl-text', 'Bildern beim ersten Versuch richtig eingeschätzt'));
+    let bewertung;
+    if (richtig === gesamt) bewertung = 'Alle Verschlusszeiten richtig erkannt – sehr gut!';
+    else if (richtig >= gesamt * 2 / 3) bewertung = 'Gut gemacht! Schau dir die mit ✗ markierten Bilder unten noch einmal an.';
+    else bewertung = 'Schau dir die Bilder unten noch einmal in Ruhe an: Woran erkennst du eine lange und woran eine kurze Verschlusszeit?';
+    endeEl.append(punktzahl, element('p', 'bewertung', bewertung),
+                  element('p', 'legende', 'Unter jedem Bild steht die richtige Verschlusszeit. ✓ und ✗ zeigen, ob deine erste Antwort gestimmt hat.'));
+
+    const liste = element('ol', 'rueckblick');
+    seiten.forEach(seite => {
+      const li = element('li');
+      const minis = element('div', 'minis');
+      seite.fragen.forEach(f => {
+        const fig = element('figure', 'mini');
+        const img = element('img');
+        img.src = f.img.src;
+        img.alt = 'Bildpaar ' + seite.nr + ', Bild ' + f.buchstabe;
+        const unterschrift = element('figcaption');
+        const zeichen = element('span', f.ersterVersuch ? 'ok' : 'bad', f.ersterVersuch ? '✓' : '✗');
+        zeichen.setAttribute('aria-label', f.ersterVersuch ? 'richtig' : 'falsch');
+        unterschrift.append(element('span', '', f.loesung), zeichen);
+        fig.append(img, unterschrift);
+        minis.append(fig);
+      });
+      li.append(element('h3', '', 'Bildpaar ' + seite.nr), minis);
+      liste.append(li);
+    });
+    endeEl.append(liste);
+
+    if (MERKSATZ) {
+      const merk = element('p', 'merksatz');
+      merk.append(element('strong', '', 'Merksatz'), document.createTextNode(MERKSATZ));
+      endeEl.append(merk);
+    }
+    ansage('Auswertung: ' + richtig + ' von ' + gesamt + ' Bildern beim ersten Versuch richtig.');
+  }
+
+  function neuBeginnen() {
+    seiten.forEach(seite => {
+      seite.geprueft = false;
+      seite.fragen.forEach(f => {
+        f.wahl = null;
+        f.status = 'offen';
+        f.ersterVersuch = null;
+        f.el.classList.remove('hinweis');
+      });
+      seiteOrdnen(seite);
+    });
+    aktuell = 0;
+    ergebnisEl.textContent = '';
+    endeEl.replaceChildren();
+    ansichtAktualisieren();
+    window.scrollTo(0, 0);
+    schrittEl.focus({ preventScroll: true });
+  }
+
+  // Auf dem Handy innerhalb von Genially: Link zum Öffnen in eigenem Fenster anzeigen
+  (function () {
+    const eingebettet = window.self !== window.top;
+    const kleinerBildschirm = Math.min(screen.width, screen.height) < 600;
+    if (eingebettet && kleinerBildschirm) {
+      const link = document.getElementById('extern');
+      link.href = location.href;
+      link.hidden = false;
+    }
+  })();
+
+  btnPruefen.addEventListener('click', e => pruefen(e.detail === 0));
+  btnLoesungen.addEventListener('click', loesungAnzeigen);
+  btnWeiter.addEventListener('click', weiter);
+  btnNeu.addEventListener('click', neuBeginnen);
+
+  ansichtAktualisieren();
+</script>
+</body>
+</html>
