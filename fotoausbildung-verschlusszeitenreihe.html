@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verschlusszeitenreihe</title>
+<style>
+  :root {
+    --tile: 76px;
+    --gap: 10px;
+    --beige: #dbc0b0;
+    --green: #a6dcbd;
+    --green-dark: #2f9a63;
+    --red: #f4bcbc;
+    --red-dark: #c83737;
+    --grey: #e1e1e1;
+    --blue: #1f6feb;
+    --text: #1d1d1d;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; }
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    color: var(--text);
+    background: #fff;
+    padding: 16px;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 1.15rem; font-weight: normal; line-height: 1.35; margin: 0 0 6px; }
+  .hint { font-size: .85rem; color: #666; margin: 0 0 14px; }
+
+  /* Ablage */
+  .pool {
+    display: flex; flex-wrap: wrap; justify-content: center; align-content: flex-start;
+    gap: var(--gap);
+    padding: 12px;
+    min-height: calc(var(--tile) + 28px);
+    background: #f6f6f6;
+    border: 2px dashed #d6d6d6;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    transition: background .15s, border-color .15s;
+  }
+  .pool.over { background: #eef6f1; border-color: var(--green-dark); }
+
+  /* Zielfelder A–K */
+  .slots {
+    display: flex; flex-wrap: wrap; justify-content: center;
+    gap: 14px var(--gap);
+    max-width: calc(6 * (var(--tile) + 14px) + 5 * var(--gap));
+    margin: 0 auto;
+  }
+  .slot { width: calc(var(--tile) + 14px); }
+  .label {
+    background: var(--grey);
+    border-radius: 4px 4px 0 0;
+    font-weight: bold;
+    font-size: .95rem;
+    padding: 3px 8px;
+  }
+  .drop {
+    position: relative;
+    height: calc(var(--tile) + 14px);
+    display: flex; align-items: center; justify-content: center;
+    background: #fafafa;
+    border: 2px dashed #c9c9c9;
+    border-radius: 0 0 6px 6px;
+    transition: background .15s, border-color .15s;
+  }
+  .drop.over { border-color: var(--green-dark); background: #eef6f1; }
+  .has-selection .drop, .has-selection .pool { cursor: pointer; }
+  .has-selection .drop:not(.correct):not(.wrong) { border-color: #9dbbe8; }
+  .drop.correct { background: var(--green); border: 2px solid var(--green); }
+  .drop.wrong   { background: var(--red);   border: 2px solid var(--red); }
+  .drop.correct::after, .drop.wrong::after {
+    position: absolute; right: 4px; bottom: 1px;
+    font-size: 15px; font-weight: bold;
+  }
+  .drop.correct::after { content: "\2713"; color: var(--green-dark); }
+  .drop.wrong::after   { content: "\2717"; color: var(--red-dark); }
+  .drop.correct:not(.shown)::before {
+    content: "+1";
+    position: absolute; top: 2px; right: 3px;
+    background: #fff; color: var(--green-dark);
+    border: 1px solid var(--green-dark); border-radius: 4px;
+    font-size: 10px; font-weight: bold; padding: 0 3px; line-height: 14px;
+  }
+  .drop:focus-visible, .pool:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+
+  /* Karten mit Holzrahmen */
+  .tile {
+    flex: 0 0 auto;
+    width: var(--tile); height: var(--tile);
+    padding: 10px;
+    border-radius: 3px;
+    cursor: grab;
+    touch-action: none;
+    user-select: none; -webkit-user-select: none;
+    background-color: #4a2e1e;
+    background-image:
+      repeating-linear-gradient(100deg, rgba(255,255,255,.07) 0 2px, transparent 2px 7px),
+      repeating-linear-gradient(10deg, rgba(0,0,0,.25) 0 1px, transparent 1px 4px);
+    box-shadow: 0 2px 4px rgba(0,0,0,.3);
+  }
+  .tile span {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; height: 100%;
+    background: var(--beige);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.25);
+    font-size: 13px; font-weight: bold; color: #222;
+    pointer-events: none;
+  }
+  .tile.dragging { opacity: .3; }
+  .tile.selected, .tile:focus-visible { outline: 3px solid var(--blue); outline-offset: 3px; }
+  .tile:focus { outline: none; }
+  .tile.selected:focus, .tile:focus-visible { outline: 3px solid var(--blue); }
+  .ghost {
+    position: fixed; z-index: 1000; margin: 0;
+    pointer-events: none;
+    transform: scale(1.06);
+    box-shadow: 0 8px 18px rgba(0,0,0,.35);
+    cursor: grabbing;
+  }
+
+  /* Buttons & Rückmeldung */
+  .buttons { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 22px; }
+  button {
+    font: inherit; font-size: .95rem;
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid #bbb;
+    background: #fff; color: var(--text);
+    cursor: pointer;
+  }
+  button:hover { background: #f2f2f2; }
+  button.primary { background: var(--green-dark); border-color: var(--green-dark); color: #fff; }
+  button.primary:hover { background: #278454; }
+  .feedback { min-height: 1.4em; text-align: center; margin-top: 14px; font-weight: bold; line-height: 1.4; }
+  .feedback.ok  { color: var(--green-dark); }
+  .feedback.bad { color: var(--red-dark); }
+
+  @media (max-width: 480px) {
+    :root { --tile: 64px; --gap: 8px; }
+    body { padding: 10px; }
+    .tile { padding: 8px; }
+    .tile span { font-size: 12px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pool, .drop { transition: none; }
+    .ghost { transform: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Wähle die korrekten Zahlen aus der internationalen Verschlusszeitenreihe aus und ordne sie von A–K der Größe nach absteigend!</h1>
+  <p class="hint">Karten ziehen – oder antippen und dann ins Feld tippen. Zurück in die Ablage geht genauso.</p>
+
+  <div class="pool" id="pool" tabindex="0" aria-label="Ablage"></div>
+  <div class="slots" id="slots"></div>
+
+  <div class="buttons">
+    <button type="button" class="primary" id="btnCheck">Überprüfen</button>
+    <button type="button" id="btnSolution">Lösung anzeigen</button>
+    <button type="button" id="btnReset">Neu starten</button>
+  </div>
+  <div class="feedback" id="feedback" aria-live="polite"></div>
+</div>
+
+<script>
+(function () {
+  // Richtige Reihenfolge für A–K (absteigend) und Distraktoren
+  const SOLUTION = ['1', '1/2', '1/4', '1/8', '1/15', '1/30', '1/60', '1/125', '1/250', '1/500', '1/1000'];
+  const DISTRACTORS = ['1/5', '1/20', '1/120', '1/600', '1/1500'];
+  const LETTERS = 'ABCDEFGHIJK'.split('');
+
+  const pool = document.getElementById('pool');
+  const slotsEl = document.getElementById('slots');
+  const feedback = document.getElementById('feedback');
+  const drops = [];
+  let selected = null;
+  let drag = null;
+
+  // ---------- Aufbau ----------
+  LETTERS.forEach(function (letter, i) {
+    const slot = document.createElement('div');
+    slot.className = 'slot';
+    const label = document.createElement('div');
+    label.className = 'label';
+    label.textContent = letter;
+    const drop = document.createElement('div');
+    drop.className = 'drop';
+    drop.dataset.index = i;
+    drop.tabIndex = 0;
+    drop.setAttribute('role', 'button');
+    drop.setAttribute('aria-label', 'Feld ' + letter);
+    drop.addEventListener('click', function () { onDropActivate(drop); });
+    drop.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onDropActivate(drop); }
+    });
+    slot.append(label, drop);
+    slotsEl.appendChild(slot);
+    drops.push(drop);
+  });
+
+  pool.addEventListener('click', onPoolActivate);
+  pool.addEventListener('keydown', function (e) {
+    if (e.target === pool && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onPoolActivate(); }
+  });
+
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function createTiles() {
+    pool.innerHTML = '';
+    drops.forEach(function (d) { d.innerHTML = ''; });
+    shuffle(SOLUTION.concat(DISTRACTORS)).forEach(function (value, i) {
+      const t = document.createElement('div');
+      t.className = 'tile';
+      t.dataset.value = value;
+      t.dataset.order = i;
+      t.tabIndex = 0;
+      t.setAttribute('role', 'button');
+      const span = document.createElement('span');
+      span.textContent = value;
+      t.appendChild(span);
+      t.addEventListener('pointerdown', onPointerDown);
+      t.addEventListener('click', function (e) { e.stopPropagation(); });
+      t.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); onTileTap(t); }
+      });
+      pool.appendChild(t);
+    });
+  }
+
+  // ---------- Verschieben ----------
+  function returnToPool(tile) {
+    const order = +tile.dataset.order;
+    const next = Array.prototype.find.call(pool.querySelectorAll('.tile'), function (t) {
+      return +t.dataset.order > order;
+    });
+    pool.insertBefore(tile, next || null);
+  }
+
+  function placeInDrop(tile, drop) {
+    const existing = drop.querySelector('.tile');
+    if (existing === tile) return;
+    const from = tile.parentElement;
+    if (existing) {
+      // Kommt die Karte aus einem anderen Feld, werden die beiden getauscht
+      if (from.classList.contains('drop')) from.appendChild(existing);
+      else returnToPool(existing);
+    }
+    drop.appendChild(tile);
+    clearFeedback();
+  }
+
+  // ---------- Antippen / Tastatur ----------
+  function select(tile) {
+    clearSelection();
+    selected = tile;
+    tile.classList.add('selected');
+    document.body.classList.add('has-selection');
+  }
+  function clearSelection() {
+    if (selected) selected.classList.remove('selected');
+    selected = null;
+    document.body.classList.remove('has-selection');
+  }
+  function onTileTap(tile) {
+    if (selected === tile) { clearSelection(); return; }
+    if (selected && tile.parentElement.classList.contains('drop')) {
+      placeInDrop(selected, tile.parentElement);
+      clearSelection();
+      return;
+    }
+    select(tile);
+  }
+  function onDropActivate(drop) {
+    if (!selected) return;
+    placeInDrop(selected, drop);
+    clearSelection();
+  }
+  function onPoolActivate() {
+    if (!selected) return;
+    if (selected.parentElement !== pool) { returnToPool(selected); clearFeedback(); }
+    clearSelection();
+  }
+
+  // ---------- Ziehen (Maus, Touch, Stift) ----------
+  function onPointerDown(e) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (drag) return;
+    const t = e.currentTarget;
+    const r = t.getBoundingClientRect();
+    drag = {
+      tile: t, id: e.pointerId,
+      x0: e.clientX, y0: e.clientY,
+      dx: e.clientX - r.left, dy: e.clientY - r.top,
+      ghost: null, over: null
+    };
+    t.setPointerCapture(e.pointerId);
+    t.addEventListener('pointermove', onPointerMove);
+    t.addEventListener('pointerup', onPointerUp);
+    t.addEventListener('pointercancel', onPointerCancel);
+  }
+
+  function targetAt(x, y) {
+    const el = document.elementFromPoint(x, y);
+    if (!el) return null;
+    return el.closest('.drop') || el.closest('.pool');
+  }
+
+  function onPointerMove(e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (!drag.ghost) {
+      if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 6) return;
+      clearSelection();
+      const g = drag.tile.cloneNode(true);
+      g.classList.add('ghost');
+      g.removeAttribute('tabindex');
+      g.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(g);
+      drag.ghost = g;
+      drag.tile.classList.add('dragging');
+    }
+    drag.ghost.style.left = (e.clientX - drag.dx) + 'px';
+    drag.ghost.style.top = (e.clientY - drag.dy) + 'px';
+    const target = targetAt(e.clientX, e.clientY);
+    if (target !== drag.over) {
+      if (drag.over) drag.over.classList.remove('over');
+      if (target) target.classList.add('over');
+      drag.over = target;
+    }
+  }
+
+  function onPointerUp(e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    const d = endDrag();
+    if (!d.ghost) { onTileTap(d.tile); return; }
+    const target = targetAt(e.clientX, e.clientY);
+    if (!target) return; // außerhalb losgelassen: Karte bleibt, wo sie war
+    if (target.classList.contains('drop')) {
+      placeInDrop(d.tile, target);
+    } else if (d.tile.parentElement !== pool) {
+      returnToPool(d.tile);
+      clearFeedback();
+    }
+  }
+
+  function onPointerCancel(e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    endDrag();
+  }
+
+  function endDrag() {
+    const d = drag;
+    drag = null;
+    const t = d.tile;
+    t.removeEventListener('pointermove', onPointerMove);
+    t.removeEventListener('pointerup', onPointerUp);
+    t.removeEventListener('pointercancel', onPointerCancel);
+    if (t.hasPointerCapture && t.hasPointerCapture(d.id)) t.releasePointerCapture(d.id);
+    if (d.ghost) d.ghost.remove();
+    if (d.over) d.over.classList.remove('over');
+    t.classList.remove('dragging');
+    return d;
+  }
+
+  // ---------- Auswertung ----------
+  function clearFeedback() {
+    drops.forEach(function (d) { d.classList.remove('correct', 'wrong', 'shown'); });
+    feedback.textContent = '';
+    feedback.className = 'feedback';
+  }
+
+  function check() {
+    clearSelection();
+    clearFeedback();
+    let right = 0, empty = 0, intruders = 0;
+    drops.forEach(function (d, i) {
+      const t = d.querySelector('.tile');
+      if (!t) { empty++; d.classList.add('wrong'); return; }
+      if (DISTRACTORS.indexOf(t.dataset.value) !== -1) intruders++;
+      if (t.dataset.value === SOLUTION[i]) { right++; d.classList.add('correct'); }
+      else d.classList.add('wrong');
+    });
+
+    if (right === SOLUTION.length) {
+      feedback.textContent = 'Super! Alle 11 Verschlusszeiten stehen in der richtigen Reihenfolge.';
+      feedback.className = 'feedback ok';
+      return;
+    }
+    let msg = right + ' von ' + SOLUTION.length + ' Feldern sind richtig.';
+    if (empty) msg += ' ' + (empty === 1 ? '1 Feld ist noch leer.' : empty + ' Felder sind noch leer.');
+    if (intruders) msg += ' ' + (intruders === 1
+      ? 'Achtung: Eine Zahl gehört nicht zur internationalen Reihe.'
+      : 'Achtung: ' + intruders + ' Zahlen gehören nicht zur internationalen Reihe.');
+    feedback.textContent = msg;
+    feedback.className = 'feedback bad';
+  }
+
+  function showSolution() {
+    clearSelection();
+    clearFeedback();
+    const tiles = Array.prototype.slice.call(document.querySelectorAll('.wrap .tile'));
+    tiles.forEach(function (t) { if (t.parentElement !== pool) returnToPool(t); });
+    SOLUTION.forEach(function (value, i) {
+      const t = tiles.find(function (x) { return x.dataset.value === value; });
+      drops[i].appendChild(t);
+      drops[i].classList.add('correct', 'shown');
+    });
+    feedback.textContent = 'So sieht die richtige Lösung aus.';
+    feedback.className = 'feedback ok';
+  }
+
+  function reset() {
+    clearSelection();
+    clearFeedback();
+    createTiles();
+  }
+
+  document.getElementById('btnCheck').addEventListener('click', check);
+  document.getElementById('btnSolution').addEventListener('click', showSolution);
+  document.getElementById('btnReset').addEventListener('click', reset);
+
+  createTiles();
+})();
+</script>
+</body>
+</html>
