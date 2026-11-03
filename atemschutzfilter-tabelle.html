@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Filter-Kennfarben</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: transparent;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+  table {
+    width: 100%;
+    height: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    /* Schrift wächst mit der Größe des Einbettungsfensters */
+    font-size: clamp(11px, min(2.2vw, 3.6vh), 30px);
+    line-height: 1.25;
+  }
+  col.farbe { width: 17%; }
+  col.typ   { width: 12%; }
+  col.bereich { width: 71%; }
+
+  th, td {
+    border: 2px solid #ffffff;
+    padding: 0.35em 0.6em;
+    vertical-align: middle;
+  }
+  th {
+    background: #000000;
+    color: #ffffff;
+    font-weight: bold;
+    text-align: left;
+    font-size: 1.1em;
+  }
+  th.mitte { text-align: center; }
+
+  td.farbe { text-align: center; }
+  td.typ   { text-align: center; }
+  td.bereich { text-align: left; }
+
+  /* Abwechselnde Grautöne für Typ und Anwendungsbereich */
+  tbody tr:nth-child(odd)  td.typ,
+  tbody tr:nth-child(odd)  td.bereich { background: #d0d0d0; }
+  tbody tr:nth-child(even) td.typ,
+  tbody tr:nth-child(even) td.bereich { background: #e8e8e8; }
+
+  /* Kennfarben */
+  .braun   { background: #7b5435; color: #ffffff; }
+  .grau    { background: #c0c0c0; color: #000000; }
+  .gelb    { background: #ffff00; color: #000000; }
+  .gruen   { background: #00b050; color: #000000; }
+  .blau    { background: #0070c0; color: #000000; }
+  .rot     { background: #ff0000; color: #000000; }
+  .schwarz { background: #000000; color: #ffffff; }
+  .weiss   { background: #ffffff; color: #000000; border-left: 2px solid #000000; }
+</style>
+</head>
+<body>
+<table>
+  <colgroup>
+    <col class="farbe"><col class="typ"><col class="bereich">
+  </colgroup>
+  <thead>
+    <tr>
+      <th class="mitte">Kennfarbe</th>
+      <th>Typ</th>
+      <th>Anwendungsbereich</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="farbe braun">braun</td>
+      <td class="typ">A</td>
+      <td class="bereich">Organische Gase und Dämpfe mit Siedepunkt &gt; 65°</td>
+    </tr>
+    <tr>
+      <td class="farbe braun">braun</td>
+      <td class="typ">AX</td>
+      <td class="bereich">Niedrigsiedende organische Verbindungen<br>(Siedepunkt &lt; 65°) der Niedrigsiedergruppe 1 und 2</td>
+    </tr>
+    <tr>
+      <td class="farbe grau">grau</td>
+      <td class="typ">B</td>
+      <td class="bereich">Anorganische Gase und Dämpfe, z.B. Chlor,<br>Schwefelwasserstoff, Blausäure</td>
+    </tr>
+    <tr>
+      <td class="farbe gelb">gelb</td>
+      <td class="typ">E</td>
+      <td class="bereich">Schwefeldioxid, Chlorwasserstoff u.a. saure Gase</td>
+    </tr>
+    <tr>
+      <td class="farbe gruen">grün</td>
+      <td class="typ">K</td>
+      <td class="bereich">Ammoniak und organische Ammoniakderivate</td>
+    </tr>
+    <tr>
+      <td class="farbe blau">blau</td>
+      <td class="typ">NO</td>
+      <td class="bereich">Nitrose Gase (Stickoxide), z.B. Stickstoffmonoxid, -dioxid</td>
+    </tr>
+    <tr>
+      <td class="farbe rot">rot</td>
+      <td class="typ">Hg</td>
+      <td class="bereich">Quecksilber</td>
+    </tr>
+    <tr>
+      <td class="farbe schwarz">schwarz</td>
+      <td class="typ">CO</td>
+      <td class="bereich">Kohlenstoffmonoxid</td>
+    </tr>
+    <tr>
+      <td class="farbe weiss">weiß</td>
+      <td class="typ">P</td>
+      <td class="bereich">Partikel</td>
+    </tr>
+  </tbody>
+</table>
+</body>
+</html>
