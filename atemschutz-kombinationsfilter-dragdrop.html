@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bild beschriften (Drag &amp; Drop)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<script>if (window.self !== window.top) document.documentElement.classList.add('eingebettet');</script>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #161B22;              /* Hintergrund, wenn die Übung direkt im Browser geöffnet wird */
+    --bg-im-rahmen: transparent; /* Hintergrund, wenn die Übung in Genially eingebettet ist */
+    --max-breite: none;         /* none = volle Breite des Rahmens; z. B. 60rem = schmaler */
+    --ink: #E6EBF0;
+    --muted: #9AA7B3;
+    --line: #2E3843;
+    --field: #212933;
+    --field-line: #3D4957;
+    --chip: #2B3541;            /* Wortkarten */
+    --accent: #5BB8C4;
+    --accent-bg: rgba(91, 184, 196, .18);
+    --ok: #7EDDA3;   --ok-bg: rgba(92, 201, 138, .14);
+    --bad: #FF8F84;  --bad-bg: rgba(240, 122, 110, .15);
+    --sol: #F0CD6E;  --sol-bg: rgba(232, 193, 90, .14);
+    --feldtext: .9rem;          /* Schriftgröße in den Feldern (bestimmt damit auch, wie groß das Bild ist) */
+  }
+  * { box-sizing: border-box; }
+  /* Schriftgröße wächst mit der Breite des Rahmens mit */
+  html { font-size: clamp(15px, 0.9vw + 9px, 22px); }
+  html.eingebettet, html.eingebettet body { background: var(--bg-im-rahmen); }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  body { padding: clamp(16px, 4vw, 40px); }
+  main { max-width: var(--max-breite); margin: 0 auto; container: uebung / inline-size; }
+
+  h1 { font-size: 1.5rem; line-height: 1.25; margin: 0 0 .4rem; font-weight: 700; letter-spacing: .005em; }
+  .anleitung { color: var(--muted); margin: 0 0 1.5rem; line-height: 1.5; }
+
+  /* ---------- Bild mit Feldern ---------- */
+  /* Die Bildgröße hängt an der Schriftgröße: Feldbeschriftungen sind so groß wie --feldtext.
+     So wachsen Bild und Text gemeinsam, wenn die Übung in einen größeren Rahmen eingepasst wird. */
+  .bild {
+    --rand: clamp(6px, .7rem, 16px);
+    --s: calc(var(--feldtext, .9rem) / var(--feld-schrift, 21)); /* ein Bildpixel */
+    display: flex;
+    align-items: flex-start;
+    width: calc(var(--summe-b) * var(--s) + 2 * var(--rand));
+    max-width: 100%;
+    margin: 0 auto;
+    padding: var(--rand);
+    background: var(--bild-hg, #DEDEDE);
+    border-radius: 10px;
+    box-shadow: 0 0 0 1px var(--line);
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .ausschnitt {
+    position: relative;
+    flex: var(--b) 1 0px;
+    min-width: 0;
+    aspect-ratio: var(--b) / var(--h);
+    container-type: inline-size;
+  }
+  .ausschnitt .clip { position: absolute; inset: 0; overflow: hidden; }
+  .ausschnitt img {
+    position: absolute;
+    max-width: none;
+    pointer-events: none;
+    -webkit-user-drag: none;
+    -webkit-touch-callout: none;
+  }
+  .bildfehler { margin: 0; padding: 1rem; color: #3A1410; font-weight: 700; }
+  .bildfehler[hidden] { display: none; }
+
+  /* Bildausschnitte untereinander statt nebeneinander:
+     beim Einpassen, wenn es so besser passt – sonst bei schmalem Rahmen (Handy) */
+  main.untereinander .bild { flex-direction: column; align-items: center; gap: .9rem; width: calc(var(--max-b) * var(--s) + 2 * var(--rand)); }
+  main.untereinander .ausschnitt { flex: none; width: calc(var(--b) * var(--s)); max-width: 100%; }
+  @container uebung (max-width: 720px) {
+    html:not(.eingepasst) .bild { flex-direction: column; align-items: center; gap: .9rem; width: calc(var(--max-b) * var(--s) + 2 * var(--rand)); }
+    html:not(.eingepasst) .ausschnitt { flex: none; width: calc(var(--b) * var(--s)); max-width: 100%; }
+  }
+
+  /* Ein Feld wächst und schrumpft mit dem Bild: --px = ein Bildpixel in Bildschirmpixeln */
+  .feld {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 calc(var(--px) * 8);
+    margin: 0;
+    font: inherit;
+    font-size: .8rem;
+    font-size: max(8px, calc(var(--px) * var(--feld-schrift, 21)));
+    line-height: 1.1;
+    text-align: center;
+    overflow-wrap: break-word;
+    color: var(--ink);
+    background: var(--field);
+    border: 1px dashed #56636F;
+    border-radius: max(4px, calc(var(--px) * 7));
+    box-shadow: 0 2px 6px rgba(0, 0, 0, .28);
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color .15s, border-color .15s, color .15s, opacity .15s;
+  }
+  .feld > span:first-child { min-width: 0; }
+  .feld.belegt { background: var(--chip); border-style: solid; border-color: var(--field-line); cursor: grab; touch-action: none; }
+
+  /* Begriff ausgewählt: Felder laden zum Anklicken ein */
+  html.auswahl-aktiv .feld:not(.gesperrt) { border-color: var(--accent); }
+  .feld.ziel { background: linear-gradient(var(--accent-bg), var(--accent-bg)), var(--field); border: 1px solid var(--accent); outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  /* Farbige Zustände liegen auf dunklem Grund, damit sie auch auf hellen Bildern lesbar bleiben */
+  .feld.richtig { background: linear-gradient(var(--ok-bg), var(--ok-bg)), var(--field);  border: 1px solid var(--ok);  color: var(--ok); }
+  .feld.falsch  { background: linear-gradient(var(--bad-bg), var(--bad-bg)), var(--field); border: 1px solid var(--bad); color: var(--bad); }
+  .feld.geloest { background: linear-gradient(var(--sol-bg), var(--sol-bg)), var(--field); border: 1px dashed var(--sol); color: var(--sol); }
+  .feld.gesperrt { cursor: default; touch-action: auto; }
+  .feld:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .feld.gelandet { animation: landen .18s ease-out; }
+  @keyframes landen { from { transform: scale(.92); } to { transform: scale(1); } }
+
+  /* ✓ / ✗ als kleines Abzeichen an der Ecke des Feldes */
+  .zeichen {
+    position: absolute;
+    top: calc(var(--px) * -11);
+    right: calc(var(--px) * -11);
+    width: max(15px, calc(var(--px) * 26));
+    height: max(15px, calc(var(--px) * 26));
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    font-size: max(10px, calc(var(--px) * 16));
+    font-weight: 700;
+    line-height: 1;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .35);
+  }
+  .zeichen:empty { display: none; }
+  .feld.richtig .zeichen { background: var(--ok);  color: #0E2A1A; }
+  .feld.falsch  .zeichen { background: var(--bad); color: #2E0F0C; }
+
+  /* ---------- Begriffe zur Auswahl ---------- */
+  .wortauswahl {
+    margin: 1.5rem 0 0;
+    padding: .8rem 1rem 1rem;
+    background: var(--field);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    transition: outline-color .2s;
+    outline: 2px solid transparent;
+    outline-offset: -2px;
+  }
+  .wortauswahl.oben { margin: 0 0 1.5rem; }
+  .wortauswahl.fixiert { position: sticky; z-index: 5; max-height: 45vh; overflow-y: auto; }
+  .wortauswahl.fixiert.unten { bottom: 0; box-shadow: 0 -12px 24px -10px rgba(0, 0, 0, .6); }
+  .wortauswahl.fixiert.oben  { top: 0;    box-shadow: 0 12px 24px -10px rgba(0, 0, 0, .6); }
+  .wortauswahl.ziel, .wortauswahl.hinweis { outline-color: var(--accent); }
+  .wortauswahl h2 { font-size: .9rem; font-weight: 700; color: var(--muted); margin: 0 0 .6rem; }
+
+  .woerter { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .5rem; }
+  .slot { display: flex; border-radius: 6px; max-width: 100%; }
+  .slot.leer { outline: 1px dashed var(--field-line); outline-offset: -1px; }
+
+  .wort {
+    font: inherit;
+    font-size: 1rem;
+    color: var(--ink);
+    max-width: 100%;
+    padding: .3rem .75rem;
+    line-height: 1.4;
+    background: var(--chip);
+    border: 1px solid var(--field-line);
+    border-radius: 6px;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color .15s, border-color .15s, opacity .15s;
+  }
+  .wort:hover { border-color: var(--accent); }
+  .wort.ausgewaehlt { background: var(--accent-bg); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .wort.platziert { visibility: hidden; }
+  .wort:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* Herkunft eines gerade gezogenen Begriffs */
+  .quelle { opacity: .35; }
+
+  /* Wortkarte, die beim Ziehen am Zeiger hängt */
+  .geist {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 1000;
+    pointer-events: none;
+    padding: .3rem .75rem;
+    font-size: 1rem;
+    line-height: 1.4;
+    white-space: nowrap;
+    color: var(--ink);
+    background: #33404E;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .5);
+    will-change: transform;
+  }
+  html.ziehen, html.ziehen * { cursor: grabbing !important; user-select: none !important; -webkit-user-select: none !important; }
+
+  .extern { display: inline-block; margin: 0 0 1.5rem; color: var(--accent); font-weight: 700; text-underline-offset: 3px; }
+  .extern[hidden] { display: none; }
+  .extern:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 2px; }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+  .auswertung { margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+  .ergebnis { margin: 0 0 1rem; font-size: 1.05rem; line-height: 1.5; }
+  .ergebnis:empty { display: none; }
+  .knoepfe { display: flex; flex-wrap: wrap; gap: .6rem; }
+
+  .knoepfe button {
+    font: inherit;
+    font-size: 1rem;
+    padding: .6rem 1.1rem;
+    border-radius: 6px;
+    border: 1px solid var(--accent);
+    cursor: pointer;
+    transition: background-color .15s, color .15s;
+  }
+  .knoepfe button[hidden] { display: none; }
+  .primaer   { background: var(--accent); color: #0D1F23; font-weight: 700; }
+  .primaer:hover { background: #74C8D3; border-color: #74C8D3; }
+  .sekundaer { background: transparent; color: var(--accent); }
+  .sekundaer:hover { background: rgba(91, 184, 196, .12); }
+  .knoepfe button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .feld, .wort, .wortauswahl, .knoepfe button { transition: none; }
+    .feld.gelandet { animation: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+  <!-- ====== HIER ANPASSEN: Überschrift und Arbeitsanweisung ====== -->
+  <h1>Aufbau eines Kombinationsfilters</h1>
+  <p class="anleitung">Ziehe die Begriffe auf die passenden Felder im Bild. Du kannst auch erst einen Begriff und dann ein Feld anklicken. Einen eingesetzten Begriff entfernst du, indem du ihn zurückziehst oder anklickst.</p>
+  <a class="extern" id="extern" href="#" target="_blank" rel="noopener" hidden>Übung in eigenem Fenster öffnen</a>
+
+  <!--
+    ====== HIER ANPASSEN: Das Bild ======
+    - src = das Bild. Hier ist es direkt eingebettet (die lange Zeichenkette).
+      Statt dessen geht auch ein Dateiname, wenn die Bilddatei im selben Ordner liegt,
+      z. B.  src="kombinationsfilter_aufgabe.webp"
+    - Die Koordinaten unten (AUFGABE) beziehen sich immer auf die Originalgröße des Bildes.
+  -->
+  <img id="bildquelle" hidden alt="" src="data:image/webp;base64,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">
+
+  <div class="bild" id="bild">
+    <p class="bildfehler" id="bildfehler" hidden>Das Bild konnte nicht geladen werden. Bitte den Dateinamen bei &lt;img id="bildquelle"&gt; prüfen.</p>
+  </div>
+
+  <section class="wortauswahl" id="wortauswahl" aria-labelledby="wortauswahl-titel">
+    <h2 id="wortauswahl-titel">Begriffe zur Auswahl</h2>
+    <ul class="woerter" id="woerter"></ul>
+  </section>
+
+  <div class="auswertung">
+    <p class="ergebnis" id="ergebnis" aria-live="polite"></p>
+    <div class="knoepfe">
+      <button type="button" class="primaer" id="pruefen">Antworten prüfen</button>
+      <button type="button" class="sekundaer" id="loesungen" hidden>Lösungen anzeigen</button>
+      <button type="button" class="sekundaer" id="neu" hidden>Von vorn beginnen</button>
+    </div>
+  </div>
+  <p class="sr-only" id="ansage" aria-live="polite"></p>
+
+</main>
+
+<script>
+  /* =====================================================================
+     ====== HIER ANPASSEN: Die Aufgabe ======
+     Alle Angaben in Pixeln des Originalbildes (z. B. in Paint oder GIMP ablesbar).
+
+     bildBreite / bildHoehe: Größe der Bilddatei
+     bildHintergrund:        Farbe der Fläche hinter dem Bild (am besten die Hintergrundfarbe des Bildes)
+
+     ausschnitte: Welche Teile des Bildes gezeigt werden (x, y = linke obere Ecke; b, h = Breite, Höhe).
+                  Auf breiten Bildschirmen stehen die Ausschnitte nebeneinander (sieht aus wie ein Bild),
+                  auf dem Handy untereinander – so bleiben die Felder größer und lesbar.
+                  Nur ein Ausschnitt oder leere Liste [] = das ganze Bild in einem Stück.
+                  beschreibung = Bildbeschreibung für Screenreader
+
+     felder:  Die Ablagefelder auf dem Bild (x, y = linke obere Ecke; b, h = Breite, Höhe)
+              loesung = der Begriff, der in dieses Feld gehört
+                        Mehrere richtige Begriffe: ['Begriff A', 'Begriff B'] (der erste wird zur Karte)
+              name    = wo das Feld liegt (für Screenreader – NICHT die Lösung hineinschreiben)
+              Aus jedem Feld wird eine Karte. Gleiche Begriffe (z. B. 2x "Mikrofon") sind
+              untereinander austauschbar.
+
+     distraktoren: Zusätzliche falsche Begriffe, z. B. ['Akku', 'Kabel']. Leer lassen: []
+
+     feldSchrift: Schriftgröße in den Feldern, gemessen in Bildpixeln
+                  (die Schrift wächst und schrumpft dann mit dem Bild mit)
+     ===================================================================== */
+  const AUFGABE = {
+    bildBreite: 780,
+    bildHoehe: 507,
+    bildHintergrund: '#E7E8EA',
+
+    ausschnitte: [
+      { x: 0, y: 0, b: 780, h: 507, beschreibung: 'Kombinationsfilter im Querschnitt. Rechts stehen sieben Felder untereinander, jedes ist über eine Linie mit einem Bauteil verbunden.' }
+    ],
+
+    felder: [
+      // Felder rechts – Linien von oben nach unten (alle gleich groß, damit die Größe nichts verrät)
+      { x: 424, y: 17,  b: 342, h: 32, loesung: 'Dichtungsring',                  name: 'Linie 1 von oben' },
+      { x: 424, y: 53,  b: 342, h: 32, loesung: 'Luftauslass',                    name: 'Linie 2 von oben' },
+      { x: 424, y: 90,  b: 342, h: 32, loesung: 'Schutzkappe',                    name: 'Linie 3 von oben' },
+      { x: 424, y: 131, b: 342, h: 32, loesung: 'RD40 Rund-Gewindeanschluss',     name: 'Linie 4 von oben' },
+      { x: 424, y: 255, b: 342, h: 32, loesung: 'Gasfilter (Aktivkohle)',         name: 'Linie 5 von oben' },
+      { x: 424, y: 338, b: 342, h: 32, loesung: 'Partikelfilter',                 name: 'Linie 6 von oben' },
+      { x: 424, y: 439, b: 342, h: 32, loesung: 'Verschlußstopfen / Lufteinlass', name: 'Linie 7 von oben' }
+    ],
+
+    distraktoren: [],
+
+    feldSchrift: 17
+  };
+
+  // ====== HIER ANPASSEN: Einstellungen ======
+  const EINSTELLUNGEN = {
+    loesungenAnzeigenErlaubt: true, // false = Knopf "Lösungen anzeigen" erscheint nie
+
+    // Wo stehen die Begriffe zum Ziehen?  'unten' = unter dem Bild,  'oben' = über dem Bild
+    wortauswahlPosition: 'unten',
+    // true = die Begriffe bleiben beim Scrollen am Rand sichtbar
+    wortauswahlFixiert: true,
+    // 'zufall' = Begriffe gemischt, 'alphabetisch' = Begriffe nach Alphabet sortiert
+    wortReihenfolge: 'zufall'
+  };
+
+  // ---------- Ab hier nichts mehr ändern nötig ----------
+  const wurzel = document.documentElement;
+  const bildEl = document.getElementById('bild');
+  const quelleEl = document.getElementById('bildquelle');
+  const auswahlEl = document.getElementById('wortauswahl');
+  const woerterEl = document.getElementById('woerter');
+  const ergebnisEl = document.getElementById('ergebnis');
+  const ansageEl = document.getElementById('ansage');
+  const btnPruefen = document.getElementById('pruefen');
+  const btnLoesungen = document.getElementById('loesungen');
+  const btnNeu = document.getElementById('neu');
+  const auswahlOben = EINSTELLUNGEN.wortauswahlPosition === 'oben';
+  const wenigBewegung = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const felder = [];  // { nr, antworten, name, el, textEl, zeichen, wort, status: 'offen'|'richtig'|'falsch'|'geloest' }
+  const woerter = []; // { nr, text, el, slot, feld }
+  let ausgewaehlt = null; // per Klick ausgewählter Begriff
+
+  const norm = s => s.trim().replace(/\s+/g, ' ');
+  const passt = (w, f) => f.antworten.some(a => norm(a) === norm(w.text));
+  const gesperrt = f => f.status === 'richtig' || f.status === 'geloest';
+  const ansage = text => { ansageEl.textContent = text; };
+  const prozent = (wert, gesamt) => (wert / gesamt * 100) + '%';
+
+  // ---------- Bild in Ausschnitte zerlegen ----------
+  bildEl.style.setProperty('--bild-hg', AUFGABE.bildHintergrund || '#DEDEDE');
+  wurzel.style.setProperty('--feld-schrift', AUFGABE.feldSchrift || 21);
+
+  const ausschnittListe = (AUFGABE.ausschnitte && AUFGABE.ausschnitte.length)
+    ? AUFGABE.ausschnitte
+    : [{ x: 0, y: 0, b: AUFGABE.bildBreite, h: AUFGABE.bildHoehe, beschreibung: quelleEl.alt }];
+
+  const ausschnitte = ausschnittListe.map(a => {
+    const el = document.createElement('div');
+    el.className = 'ausschnitt';
+    el.style.setProperty('--b', a.b);
+    el.style.setProperty('--h', a.h);
+    el.style.setProperty('--px', 'calc(100cqw / ' + a.b + ')');
+    const clip = document.createElement('div');
+    clip.className = 'clip';
+    const img = document.createElement('img');
+    img.alt = a.beschreibung || '';
+    img.draggable = false;
+    img.decoding = 'async';
+    img.style.width = prozent(AUFGABE.bildBreite, a.b);
+    img.style.height = prozent(AUFGABE.bildHoehe, a.h);
+    img.style.left = prozent(-a.x, a.b);
+    img.style.top = prozent(-a.y, a.h);
+    img.addEventListener('error', () => {
+      document.getElementById('bildfehler').hidden = false;
+      bildEl.querySelectorAll('.ausschnitt').forEach(x => { x.hidden = true; });
+    });
+    img.src = quelleEl.src;
+    clip.append(img);
+    el.append(clip);
+    bildEl.append(el);
+    return Object.assign({}, a, { el });
+  });
+  bildEl.style.setProperty('--summe-b', ausschnitte.reduce((s, a) => s + a.b, 0));
+  bildEl.style.setProperty('--max-b', Math.max(...ausschnitte.map(a => a.b)));
+
+  // Für das Einpassen (Baustein am Ende): Anordnungen, die ausprobiert werden,
+  // und Bedingung, dass die Feldbeschriftungen lesbar bleiben
+  // (mind. 65 % der normalen Schrift und nie unter 8 px)
+  window.einpassenVarianten = ausschnitte.length > 1
+    ? [[], ['seitlich'], ['untereinander'], ['untereinander', 'seitlich']]
+    : [[], ['seitlich']];
+  window.einpassenPruefen = () => {
+    const mindestens = Math.max(8, 0.65 * parseFloat(getComputedStyle(wurzel).fontSize));
+    return ausschnitte.every(a => a.el.getBoundingClientRect().width / a.b * (AUFGABE.feldSchrift || 21) >= mindestens);
+  };
+
+  // ---------- Felder aufs Bild legen ----------
+  AUFGABE.felder.forEach((f, i) => {
+    const mx = f.x + f.b / 2, my = f.y + f.h / 2;
+    const a = ausschnitte.find(a => mx >= a.x && mx <= a.x + a.b && my >= a.y && my <= a.y + a.h) || ausschnitte[0];
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'feld';
+    el.dataset.nr = i;
+    el.style.left = prozent(f.x - a.x, a.b);
+    el.style.top = prozent(f.y - a.y, a.h);
+    el.style.width = prozent(f.b, a.b);
+    el.style.height = prozent(f.h, a.h);
+    const textSpan = document.createElement('span');
+    const zeichen = document.createElement('span');
+    zeichen.className = 'zeichen';
+    zeichen.setAttribute('aria-hidden', 'true');
+    el.append(textSpan, zeichen);
+    el.addEventListener('animationend', () => el.classList.remove('gelandet'));
+    a.el.append(el);
+    const antworten = [].concat(f.loesung).map(String).filter(s => s.trim());
+    felder.push({ nr: i + 1, antworten, name: f.name || ('Feld ' + (i + 1)), el, textEl: textSpan, zeichen, wort: null, status: 'offen' });
+  });
+
+  // ---------- Begriffe zur Auswahl aufbauen ----------
+  const distraktoren = (AUFGABE.distraktoren || []).map(w => String(w).trim()).filter(Boolean);
+  felder.map(f => f.antworten[0]).concat(distraktoren).forEach((text, i) => {
+    const slot = document.createElement('li');
+    slot.className = 'slot';
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'wort';
+    el.textContent = text;
+    el.dataset.nr = i;
+    slot.append(el);
+    woerter.push({ nr: i, text, el, slot, feld: null });
+  });
+  if (distraktoren.length === 0) {
+    document.getElementById('wortauswahl-titel').textContent = 'Diese Begriffe gehören auf die Felder';
+  }
+
+  function wortauswahlOrdnen() {
+    const reihe = woerter.slice();
+    if (EINSTELLUNGEN.wortReihenfolge === 'alphabetisch') {
+      reihe.sort((a, b) => a.text.localeCompare(b.text, 'de'));
+    } else {
+      for (let i = reihe.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [reihe[i], reihe[j]] = [reihe[j], reihe[i]];
+      }
+    }
+    reihe.forEach(w => woerterEl.append(w.slot));
+  }
+  wortauswahlOrdnen();
+
+  auswahlEl.classList.add(auswahlOben ? 'oben' : 'unten');
+  if (auswahlOben) bildEl.before(auswahlEl);
+  if (EINSTELLUNGEN.wortauswahlFixiert) {
+    auswahlEl.classList.add('fixiert');
+    // Damit beim Springen mit der Tab-Taste kein Feld unter der Begriffsauswahl verschwindet
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(() => {
+        const abstand = auswahlEl.offsetHeight + 12 + 'px';
+        if (auswahlOben) wurzel.style.scrollPaddingTop = abstand;
+        else wurzel.style.scrollPaddingBottom = abstand;
+      }).observe(auswahlEl);
+    }
+  }
+
+  // ---------- Darstellung ----------
+  function darstellen() {
+    felder.forEach(f => {
+      const el = f.el;
+      el.classList.remove('richtig', 'falsch', 'geloest');
+      if (f.status !== 'offen') el.classList.add(f.status);
+      el.classList.toggle('belegt', !!f.wort);
+      el.classList.toggle('gesperrt', gesperrt(f));
+      f.textEl.textContent = f.wort ? f.wort.text : ' ';
+      f.zeichen.textContent = { richtig: '✓', falsch: '✗' }[f.status] || '';
+      const zusatz = { richtig: ', richtig', falsch: ', falsch', geloest: ', Lösung eingesetzt' }[f.status] || '';
+      el.setAttribute('aria-label', f.name + ': ' + (f.wort ? f.wort.text : 'leer') + zusatz);
+      el.setAttribute('aria-disabled', gesperrt(f) ? 'true' : 'false');
+    });
+    woerter.forEach(w => {
+      w.el.classList.toggle('platziert', !!w.feld);
+      w.slot.classList.toggle('leer', !!w.feld);
+      w.el.classList.toggle('ausgewaehlt', ausgewaehlt === w);
+      w.el.setAttribute('aria-pressed', String(ausgewaehlt === w));
+    });
+    wurzel.classList.toggle('auswahl-aktiv', !!ausgewaehlt);
+  }
+
+  // ---------- Begriffe bewegen ----------
+  // Ein falsch markiertes Feld wird wieder neutral, sobald sich darin etwas ändert
+  function zuruecksetzen(f) { if (f && f.status === 'falsch') f.status = 'offen'; }
+
+  function wortEinsetzen(wort, feld) {
+    if (gesperrt(feld)) return;
+    const herkunft = wort.feld;
+    if (herkunft === feld) return;
+    const vorher = feld.wort;
+    if (herkunft) herkunft.wort = null;
+    feld.wort = wort;
+    wort.feld = feld;
+    if (vorher) {
+      // Kam der neue Begriff aus einem anderen Feld, tauschen die beiden Begriffe die Plätze
+      vorher.feld = herkunft || null;
+      if (herkunft) herkunft.wort = vorher;
+    }
+    zuruecksetzen(herkunft);
+    zuruecksetzen(feld);
+    if (!wenigBewegung) {
+      feld.el.classList.remove('gelandet');
+      void feld.el.offsetWidth;
+      feld.el.classList.add('gelandet');
+    }
+    darstellen();
+  }
+
+  function wortZurueck(wort) {
+    const f = wort.feld;
+    if (!f || gesperrt(f)) return;
+    f.wort = null;
+    wort.feld = null;
+    zuruecksetzen(f);
+    darstellen();
+  }
+
+  function auswahlAufheben() {
+    if (!ausgewaehlt) return;
+    ausgewaehlt = null;
+    darstellen();
+  }
+
+  function wortauswahlHinweisen() {
+    auswahlEl.classList.add('hinweis');
+    clearTimeout(wortauswahlHinweisen.t);
+    wortauswahlHinweisen.t = setTimeout(() => auswahlEl.classList.remove('hinweis'), 900);
+    ansage('Wähle zuerst einen Begriff aus der Auswahl.');
+  }
+
+  // ---------- Klicken / Tippen / Tastatur ----------
+  // Verhindert, dass nach dem Ziehen zusätzlich ein Klick auf das gezogene Element ausgelöst wird
+  let klickSperre = { el: null, bis: 0 };
+
+  function wortAngeklickt(w, perTastatur) {
+    if (w.feld) return;
+    if (ausgewaehlt === w) { auswahlAufheben(); return; }
+    ausgewaehlt = w;
+    darstellen();
+    if (perTastatur) {
+      const ziel = felder.find(f => !f.wort && !gesperrt(f)) || felder.find(f => !gesperrt(f));
+      if (ziel) ziel.el.focus();
+      ansage('„' + w.text + '“ ausgewählt. Wähle jetzt ein Feld.');
+    }
+  }
+
+  function feldAngeklickt(f, perTastatur) {
+    if (gesperrt(f)) return;
+    if (ausgewaehlt) {
+      const w = ausgewaehlt;
+      ausgewaehlt = null;
+      wortEinsetzen(w, f);
+      ansage('„' + w.text + '“ eingesetzt: ' + f.name + '.');
+      if (perTastatur) {
+        const naechstes = [...woerterEl.children].map(s => woerter[s.firstChild.dataset.nr]).find(x => !x.feld);
+        if (naechstes) naechstes.el.focus();
+        else if (!btnPruefen.hidden) btnPruefen.focus();
+      }
+      return;
+    }
+    if (f.wort) {
+      const w = f.wort;
+      wortZurueck(w);
+      ansage('„' + w.text + '“ zurück in die Auswahl gelegt.');
+      return;
+    }
+    wortauswahlHinweisen();
+  }
+
+  document.querySelector('main').addEventListener('click', e => {
+    if (klickSperre.el && klickSperre.el.contains(e.target) && performance.now() < klickSperre.bis) return;
+    const perTastatur = e.detail === 0;
+    const wortEl = e.target.closest('.wort');
+    if (wortEl) { wortAngeklickt(woerter[wortEl.dataset.nr], perTastatur); return; }
+    const feldEl = e.target.closest('.feld');
+    if (feldEl) { feldAngeklickt(felder[feldEl.dataset.nr], perTastatur); }
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (zug) zugBeenden(false);
+    else auswahlAufheben();
+  });
+
+  // ---------- Ziehen und Ablegen (Maus, Finger, Stift) ----------
+  let zug = null;
+
+  document.addEventListener('pointerdown', e => {
+    if (zug || !e.isPrimary) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const el = e.target.closest('.wort, .feld');
+    if (!el) return;
+    let wort;
+    if (el.classList.contains('wort')) {
+      wort = woerter[el.dataset.nr];
+      if (wort.feld) return;
+    } else {
+      const f = felder[el.dataset.nr];
+      if (!f.wort || gesperrt(f)) return;
+      wort = f.wort;
+    }
+    zug = { wort, el, id: e.pointerId, typ: e.pointerType, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, aktiv: false, ziel: null };
+    try { el.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+
+  document.addEventListener('pointermove', e => {
+    if (!zug || e.pointerId !== zug.id) return;
+    zug.x = e.clientX;
+    zug.y = e.clientY;
+    if (!zug.aktiv) {
+      const schwelle = zug.typ === 'mouse' ? 5 : 8;
+      if (Math.hypot(zug.x - zug.startX, zug.y - zug.startY) < schwelle) return;
+      zugStarten();
+    }
+    e.preventDefault();
+    geistBewegen();
+    zielAktualisieren();
+  });
+
+  document.addEventListener('pointerup', e => {
+    if (!zug || e.pointerId !== zug.id) return;
+    if (zug.aktiv) { zug.x = e.clientX; zug.y = e.clientY; zielAktualisieren(); }
+    zugBeenden(true);
+  });
+  document.addEventListener('pointercancel', e => {
+    if (zug && e.pointerId === zug.id) zugBeenden(false);
+  });
+  document.addEventListener('lostpointercapture', e => {
+    if (zug && e.pointerId === zug.id) zugBeenden(false);
+  });
+  // Fallback für ältere Mobilbrowser: Seite nicht scrollen, während ein Begriff gezogen wird
+  document.addEventListener('touchmove', e => { if (zug) e.preventDefault(); }, { passive: false });
+
+  function zugStarten() {
+    zug.aktiv = true;
+    auswahlAufheben();
+    const r = zug.el.getBoundingClientRect();
+    const geist = document.createElement('div');
+    geist.className = 'geist';
+    geist.setAttribute('aria-hidden', 'true');
+    geist.textContent = zug.wort.text;
+    document.body.append(geist);
+    const g = geist.getBoundingClientRect();
+    zug.geist = geist;
+    zug.gB = g.width;
+    zug.gH = g.height;
+    if (zug.typ === 'touch') {
+      // Auf dem Handy schwebt der Begriff über dem Finger, damit er sichtbar bleibt
+      zug.offX = g.width / 2;
+      zug.offY = g.height + 14;
+    } else if (zug.el.classList.contains('feld')) {
+      // Aus einem Feld gezogen: Karte mittig am Zeiger
+      zug.offX = g.width / 2;
+      zug.offY = g.height / 2;
+    } else {
+      zug.offX = Math.min(Math.max(zug.startX - r.left, 0), g.width);
+      zug.offY = Math.min(Math.max(zug.startY - r.top, 0), g.height);
+    }
+    zug.el.classList.add('quelle');
+    wurzel.classList.add('ziehen');
+    requestAnimationFrame(autoScrollen);
+  }
+
+  function geistBewegen() {
+    zug.geist.style.transform = 'translate(' + (zug.x - zug.offX) + 'px,' + (zug.y - zug.offY) + 'px)';
+  }
+
+  // Punkt, an dem abgelegt wird: Mauszeiger bzw. Mitte des Begriffs über dem Finger
+  function ablagepunkt() {
+    if (zug.typ === 'touch') return { x: zug.x - zug.offX + zug.gB / 2, y: zug.y - zug.offY + zug.gH / 2 };
+    return { x: zug.x, y: zug.y };
+  }
+
+  function zielFinden(x, y) {
+    const treffer = document.elementFromPoint(x, y);
+    if (treffer) {
+      if (treffer.closest('.wortauswahl')) return 'auswahl';
+      const fEl = treffer.closest('.feld');
+      if (fEl) {
+        const f = felder[fEl.dataset.nr];
+        return gesperrt(f) ? null : f;
+      }
+    }
+    // Etwas Toleranz: nächstes Feld in der Nähe des Ablagepunkts
+    let beste = null, besterAbstand = 22;
+    felder.forEach(f => {
+      if (gesperrt(f)) return;
+      const r = f.el.getBoundingClientRect();
+      const dx = Math.max(r.left - x, 0, x - r.right);
+      const dy = Math.max(r.top - y, 0, y - r.bottom);
+      const d = Math.hypot(dx, dy);
+      if (d < besterAbstand) { beste = f; besterAbstand = d; }
+    });
+    return beste;
+  }
+
+  function zielAktualisieren() {
+    const p = ablagepunkt();
+    let ziel = zielFinden(p.x, p.y);
+    if (ziel === zug.wort.feld) ziel = null;              // eigenes Feld
+    if (ziel === 'auswahl' && !zug.wort.feld) ziel = null; // Begriff liegt schon in der Auswahl
+    if (ziel === zug.ziel) return;
+    zielMarkieren(zug.ziel, false);
+    zug.ziel = ziel;
+    zielMarkieren(ziel, true);
+  }
+
+  function zielMarkieren(ziel, an) {
+    if (!ziel) return;
+    (ziel === 'auswahl' ? auswahlEl : ziel.el).classList.toggle('ziel', an);
+  }
+
+  function zugBeenden(ablegen) {
+    const z = zug;
+    zug = null;
+    if (!z) return;
+    try { z.el.releasePointerCapture(z.id); } catch (_) {}
+    if (!z.aktiv) return; // war nur ein Klick bzw. Antippen
+    klickSperre = { el: z.el, bis: performance.now() + 400 };
+    zielMarkieren(z.ziel, false);
+    z.geist.remove();
+    z.el.classList.remove('quelle');
+    wurzel.classList.remove('ziehen');
+    if (!ablegen || !z.ziel) return;
+    if (z.ziel === 'auswahl') {
+      wortZurueck(z.wort);
+      ansage('„' + z.wort.text + '“ zurück in die Auswahl gelegt.');
+    } else {
+      wortEinsetzen(z.wort, z.ziel);
+      ansage('„' + z.wort.text + '“ eingesetzt: ' + z.ziel.name + '.');
+    }
+  }
+
+  // Seite scrollt mit, wenn man einen Begriff an den oberen oder unteren Rand zieht
+  function autoScrollen() {
+    if (!zug || !zug.aktiv) return;
+    const zone = 60, maxTempo = 18, y = zug.y;
+    let oben = 0, unten = window.innerHeight;
+    let obenBegrenzt = false, untenBegrenzt = false; // Rand wird von der Begriffsauswahl gebildet
+    if (EINSTELLUNGEN.wortauswahlFixiert) {
+      const r = auswahlEl.getBoundingClientRect();
+      if (auswahlOben && r.bottom > 0) { oben = Math.min(r.bottom, unten - 2 * zone); obenBegrenzt = true; }
+      if (!auswahlOben && r.top < unten) { unten = Math.max(r.top, 2 * zone); untenBegrenzt = true; }
+    }
+    // Ein Rand scrollt erst, wenn der Zeiger zwischendurch über dem Bild war. So scrollt die Seite
+    // nicht ungewollt, wenn man einen Begriff aus der Auswahl nur am Rand vorbei nach oben zieht.
+    if (y >= oben + zone) zug.obenScharf = true;
+    if (y <= unten - zone) zug.untenScharf = true;
+    let tempo = 0;
+    if (zug.obenScharf && y < oben + zone && !(obenBegrenzt && y < oben)) {
+      tempo = -maxTempo * Math.min(1, (oben + zone - y) / zone);
+    } else if (zug.untenScharf && y > unten - zone && !(untenBegrenzt && y > unten)) {
+      tempo = maxTempo * Math.min(1, (y - (unten - zone)) / zone);
+    }
+    if (tempo) {
+      const vorher = window.scrollY;
+      window.scrollBy(0, tempo);
+      if (window.scrollY !== vorher) zielAktualisieren();
+    }
+    requestAnimationFrame(autoScrollen);
+  }
+
+  // ---------- Auswerten ----------
+  function pruefen(perTastatur) {
+    auswahlAufheben();
+    felder.forEach(f => {
+      if (gesperrt(f)) return;
+      f.status = f.wort && passt(f.wort, f) ? 'richtig' : 'falsch';
+    });
+    darstellen();
+
+    const gesamt = felder.length;
+    const richtig = felder.filter(f => f.status === 'richtig').length;
+    const falsche = felder.filter(f => f.status === 'falsch');
+
+    if (falsche.length === 0) {
+      ergebnisEl.textContent = richtig === gesamt
+        ? `Alle ${gesamt} Felder richtig beschriftet. Sehr gut!`
+        : `${richtig} von ${gesamt} Feldern selbst gelöst.`;
+      btnPruefen.hidden = true;
+      btnLoesungen.hidden = true;
+      btnNeu.hidden = false;
+      if (perTastatur) btnNeu.focus();
+      return;
+    }
+
+    const leer = falsche.filter(f => !f.wort).length;
+    const falschBelegt = falsche.length - leer;
+    const teile = [];
+    if (falschBelegt) teile.push(falschBelegt === 1 ? 'tausche den rot markierten Begriff aus' : 'tausche die rot markierten Begriffe aus');
+    if (leer) teile.push(leer === 1 ? 'fülle das leere Feld' : `fülle die ${leer} leeren Felder`);
+    let satz = teile.join(', ') + ' und prüfe dann erneut.';
+    satz = satz.charAt(0).toUpperCase() + satz.slice(1);
+    ergebnisEl.textContent = `${richtig} von ${gesamt} Feldern richtig. ${satz}`;
+    btnPruefen.textContent = 'Erneut prüfen';
+    btnLoesungen.hidden = !EINSTELLUNGEN.loesungenAnzeigenErlaubt;
+    btnNeu.hidden = false;
+    if (perTastatur) falsche[0].el.focus();
+  }
+
+  function loesungenAnzeigen() {
+    auswahlAufheben();
+    const offen = felder.filter(f => f.status !== 'richtig');
+    offen.forEach(f => { if (f.wort) { f.wort.feld = null; f.wort = null; } });
+    const frei = () => woerter.filter(w => !w.feld);
+    // Zuerst den Begriff einsetzen, der genau zum Feld gehört, danach Alternativen
+    offen.forEach(f => {
+      const w = frei().find(w => norm(w.text) === norm(f.antworten[0]));
+      if (w) { f.wort = w; w.feld = f; }
+    });
+    offen.forEach(f => {
+      if (f.wort) return;
+      const w = frei().find(w => passt(w, f));
+      if (w) { f.wort = w; w.feld = f; }
+    });
+    offen.forEach(f => { f.status = 'geloest'; });
+    darstellen();
+    const richtig = felder.filter(f => f.status === 'richtig').length;
+    ergebnisEl.textContent = `${richtig} von ${felder.length} Feldern selbst gelöst. Die gelb markierten Felder zeigen die Lösung.`;
+    btnPruefen.hidden = true;
+    btnLoesungen.hidden = true;
+    btnNeu.hidden = false;
+  }
+
+  function neuBeginnen() {
+    ausgewaehlt = null;
+    felder.forEach(f => { f.wort = null; f.status = 'offen'; });
+    woerter.forEach(w => { w.feld = null; });
+    wortauswahlOrdnen();
+    darstellen();
+    ergebnisEl.textContent = '';
+    btnPruefen.textContent = 'Antworten prüfen';
+    btnPruefen.hidden = false;
+    btnLoesungen.hidden = true;
+    btnNeu.hidden = true;
+  }
+
+  // Auf dem Handy innerhalb von Genially: Link zum Öffnen in eigenem Fenster anzeigen
+  (function () {
+    const eingebettet = window.self !== window.top;
+    const kleinerBildschirm = Math.min(screen.width, screen.height) < 600;
+    if (eingebettet && kleinerBildschirm) {
+      const link = document.getElementById('extern');
+      link.href = location.href;
+      link.hidden = false;
+    }
+  })();
+
+  btnPruefen.addEventListener('click', e => pruefen(e.detail === 0));
+  btnLoesungen.addEventListener('click', loesungenAnzeigen);
+  btnNeu.addEventListener('click', neuBeginnen);
+
+  darstellen();
+</script>
+<!-- =====================================================================
+     EINPASSEN: Die Übung füllt ihren Rahmen (z. B. in Genially) möglichst
+     ohne Scrollen. Die Schrift – und damit alles, was in rem angegeben ist –
+     wird so groß gewählt, wie es die Höhe UND die Breite des Rahmens erlauben.
+     Bei breiten Rahmen dürfen die Begriffe rechts neben Text bzw. Bild stehen.
+     Passt die Übung selbst bei kleinster Schrift nicht (z. B. Handy),
+     wird wie bisher gescrollt.
+     Einbau: diesen ganzen Block ganz unten einfügen, direkt vor dem schließenden body-Tag.
+     ===================================================================== -->
+<style>
+  /* Im eingepassten Zustand etwas weniger Rand, damit mehr Platz für die Übung bleibt */
+  html.einpassen body { padding: clamp(10px, 3.5vh, 36px) clamp(14px, 3.5vw, 40px); }
+  html.eingepasst .wortauswahl.fixiert { max-height: none; overflow: visible; }
+  /* Fotos (Bildvergleich): Höhe in rem statt nach Bildschirmhöhe, damit sie beim Einpassen mitwachsen */
+  html.eingepasst { --bild-hoehe: 12rem; }
+
+  /* Rückmeldung neben den Knöpfen statt darüber – spart eine Zeile Höhe */
+  html.einpassen .auswertung { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.25rem; margin-top: 1.1rem; padding-top: .9rem; }
+  html.einpassen .auswertung .knoepfe { order: 1; }
+  html.einpassen .auswertung .ergebnis { order: 2; flex: 1 1 18rem; margin: 0; }
+
+  /* Breiter Rahmen: Begriffe rechts neben Text bzw. Bild */
+  main.seitlich {
+    display: grid;
+    grid-template-columns: minmax(0, max-content) minmax(11rem, 17rem);
+    justify-content: center;
+    column-gap: clamp(1rem, 2.5vw, 2.25rem);
+    grid-auto-flow: row dense;
+    align-items: start;
+  }
+  main.seitlich > * { grid-column: 1 / -1; }
+  main.seitlich > .text,
+  main.seitlich > .bild { grid-column: 1; }
+  main.seitlich > .wortauswahl { grid-column: 2; margin: 0; }
+  main.seitlich > .wortauswahl.fixiert { position: static; box-shadow: none; }
+</style>
+<script>
+  // ====== HIER ANPASSEN: Einpassen in den Rahmen ======
+  const EINPASSEN = {
+    aktiv: true,     // false = wie früher: Schrift richtet sich nur nach der Breite, Höhe egal
+    minSchrift: 13,  // px – kleiner wird die Schrift nie. Passt es dann noch nicht, wird gescrollt.
+    minSchriftImRahmen: 11, // px – dasselbe, wenn die Übung eingebettet ist (Genially vergrößert
+                            //      die ganze Seite beim Anzeigen ohnehin auf Bildschirmgröße)
+    maxSchrift: 30,  // px – größer wird die Schrift nie (bei sehr großen Rahmen)
+    seitlich: true   // true = bei breiten Rahmen dürfen die Begriffe rechts neben Text/Bild stehen
+  };
+
+  // ---------- Ab hier nichts mehr ändern nötig ----------
+  (function () {
+    if (!EINPASSEN.aktiv) return;
+    const html = document.documentElement;
+    const main = document.querySelector('main');
+    if (!main) return;
+    html.classList.add('einpassen');
+
+    // Welche Anordnungen ausprobiert werden (Klassen an <main>). Eine Übung kann eigene
+    // Varianten vorgeben (window.einpassenVarianten) und eine Zusatzprüfung (window.einpassenPruefen).
+    let varianten = window.einpassenVarianten || [[], ['seitlich']];
+    if (!EINPASSEN.seitlich || !main.querySelector(':scope > .wortauswahl')) {
+      varianten = varianten.filter(v => !v.includes('seitlich'));
+    }
+    if (varianten.length === 0) varianten = [[]];
+    const alleKlassen = [...new Set(varianten.flat())];
+    // Platzhalter für die Rückmeldung nach dem Prüfen – damit später nichts überläuft
+    const PLATZHALTER = '10 von 12 richtig. Tausche die rot markierten Antworten aus, fülle die 2 leeren Stellen und prüfe dann noch einmal.';
+
+    let laeuft = false, nachholen = false, geplant = false;
+
+    // Passt alles in den Rahmen? Beim Suchen mit etwas Reserve, damit später nichts knapp überläuft.
+    const unterkante = () => main.getBoundingClientRect().bottom + window.scrollY
+      + parseFloat(getComputedStyle(document.body).paddingBottom);
+    const passt = (reserve = 6) => unterkante() <= window.innerHeight - reserve
+      && html.scrollWidth <= window.innerWidth + 1;
+    const ziehtGerade = () => html.classList.contains('ziehen') || document.body.classList.contains('zieht');
+
+    function setzen(px, v) {
+      html.style.fontSize = px + 'px';
+      alleKlassen.forEach(k => main.classList.toggle(k, v.includes(k)));
+    }
+
+    function einpassen() {
+      if (ziehtGerade()) { nachholen = true; return; }
+      laeuft = true;
+      const breite = window.innerWidth;
+      const eingebettet = window.self !== window.top;
+      const normal = Math.min(22, Math.max(15, 0.009 * breite + 9)); // bisherige Größe nach Breite
+      const minimum = eingebettet ? EINPASSEN.minSchriftImRahmen : EINPASSEN.minSchrift;
+      const unten = breite < 600 ? normal : Math.min(minimum, normal);
+      const oben = Math.max(unten, Math.min(EINPASSEN.maxSchrift, Math.max(normal, breite / 40)));
+
+      // Spätere Inhalte schon mit einplanen: Rückmeldung und alle Knöpfe
+      const ergebnis = document.getElementById('ergebnis');
+      let probe = null;
+      if (ergebnis && !ergebnis.textContent.trim()) {
+        probe = ergebnis.cloneNode(false);
+        probe.removeAttribute('id');
+        probe.removeAttribute('aria-live');
+        probe.setAttribute('aria-hidden', 'true');
+        probe.textContent = PLATZHALTER;
+        ergebnis.after(probe);
+      }
+      const versteckt = [...document.querySelectorAll('.knoepfe [hidden]')];
+      versteckt.forEach(b => { b.hidden = false; });
+      html.classList.add('eingepasst');
+      const x = window.scrollX, y = window.scrollY;
+
+      let beste = null;
+      varianten.forEach(v => {
+        setzen(unten, v);
+        if (!passt()) return;
+        let lo = unten, hi = oben;
+        setzen(hi, v);
+        if (passt()) lo = hi;
+        else {
+          while (hi - lo > 0.2) {
+            const mitte = (lo + hi) / 2;
+            setzen(mitte, v);
+            if (passt()) lo = mitte; else hi = mitte;
+          }
+        }
+        setzen(lo, v);
+        // Zusatzprüfung der Übung (z. B. Beschriftungen im Bild lesbar). Schlägt sie fehl,
+        // die größte kleinere Schrift suchen, bei der beides erfüllt ist.
+        const pruefung = window.einpassenPruefen;
+        if (typeof pruefung === 'function' && !pruefung()) {
+          const beides = () => passt() && pruefung();
+          setzen(unten, v);
+          if (!beides()) return;
+          let gut = unten, schlecht = lo;
+          while (schlecht - gut > 0.2) {
+            const mitte = (gut + schlecht) / 2;
+            setzen(mitte, v);
+            if (beides()) gut = mitte; else schlecht = mitte;
+          }
+          lo = gut;
+        }
+        // Eine spätere Anordnung wird nur genommen, wenn sie deutlich größere Schrift erlaubt
+        if (!beste || lo > beste.px * 1.08) beste = { px: lo, v };
+      });
+
+      if (probe) probe.remove();
+      versteckt.forEach(b => { b.hidden = true; });
+      if (beste) {
+        setzen(beste.px, beste.v);
+      } else {
+        // Passt nirgends: es wird gescrollt. Im eingebetteten Rahmen mit kleiner Schrift
+        // (möglichst wenig scrollen), sonst (z. B. Handy) in normaler Größe.
+        html.classList.remove('eingepasst');
+        setzen(normal, []);
+        html.style.fontSize = (eingebettet && breite >= 600) ? unten + 'px' : '';
+      }
+      window.scrollTo(x, y);
+      laeuft = false;
+    }
+
+    function planen() {
+      if (geplant) return;
+      geplant = true;
+      requestAnimationFrame(() => { geplant = false; einpassen(); });
+    }
+
+    window.addEventListener('resize', planen);
+    window.addEventListener('load', planen);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(planen);
+    // Wird der Inhalt später doch größer (z. B. ein langes Wort in einer Lücke), neu einpassen
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(() => {
+        if (!laeuft && html.classList.contains('eingepasst') && !passt(0)) planen();
+      }).observe(main);
+    }
+    // Während gezogen wird, nichts verschieben – erst danach
+    document.addEventListener('pointerup', () => { if (nachholen) { nachholen = false; setTimeout(planen, 0); } });
+    document.addEventListener('pointercancel', () => { if (nachholen) { nachholen = false; setTimeout(planen, 0); } });
+    einpassen();
+  })();
+</script>
+</body>
+</html>
