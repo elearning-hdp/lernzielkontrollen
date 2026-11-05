@@ -72,19 +72,19 @@
   ::selection { background: rgba(201, 164, 103, .35); color: #fff8ea; }
 
   .wrap {
-    max-width: 46rem;
+    max-width: 68rem;
     margin: 0 auto;
-    padding: clamp(1.5rem, 5vw, 3rem) clamp(1rem, 4vw, 2rem) clamp(2.5rem, 6vw, 4rem);
+    padding: clamp(1rem, 3vw, 1.6rem) clamp(.9rem, 3vw, 1.75rem) clamp(2rem, 5vw, 3rem);
   }
 
   /* ---------- Kopf ---------- */
-  .masthead { text-align: center; margin-bottom: clamp(1.6rem, 4vw, 2.5rem); }
+  .masthead { text-align: center; margin-bottom: clamp(1rem, 3vw, 1.5rem); }
 
   .masthead h1 {
     margin: 0;
     font-family: var(--f-display);
     font-weight: 400;
-    font-size: clamp(2.1rem, 7vw, 3.3rem);
+    font-size: clamp(1.9rem, 5vw, 2.6rem);
     line-height: 1.1;
     letter-spacing: .09em;
     text-transform: uppercase;
@@ -94,7 +94,8 @@
   .rule {
     position: relative;
     height: 1px;
-    margin: clamp(.85rem, 2.5vw, 1.2rem) 0;
+    max-width: 46rem;
+    margin: clamp(.55rem, 1.6vw, .8rem) auto;
     background: linear-gradient(90deg, transparent, var(--gold-line) 10%, var(--gold) 50%, var(--gold-line) 90%, transparent);
   }
   .rule::after {
@@ -112,7 +113,7 @@
   .subtitle {
     margin: 0;
     font-style: italic;
-    font-size: clamp(1rem, 2.6vw, 1.25rem);
+    font-size: clamp(.95rem, 2.2vw, 1.12rem);
     letter-spacing: .16em;
     text-transform: uppercase;
     color: var(--gold);
@@ -120,8 +121,8 @@
 
   /* ---------- Flächen ---------- */
   .panel {
-    margin: 0 0 1.25rem;
-    padding: clamp(1.1rem, 3.5vw, 1.6rem) clamp(1rem, 3.5vw, 1.75rem);
+    margin: 0 0 1rem;
+    padding: clamp(1rem, 3vw, 1.35rem) clamp(1rem, 3vw, 1.75rem);
     border: 1px solid var(--gold-faint);
     border-radius: 3px;
     background-color: rgba(10, 8, 6, .38);
@@ -131,7 +132,7 @@
   /* ---------- Einleitung ---------- */
   .lead { margin: 0; font-size: 1.3rem; line-height: 1.6; }
 
-  .roster-intro { margin: 1.1rem 0 .45rem; color: var(--ink-soft); }
+  .roster-intro { margin: .9rem 0 .4rem; color: var(--ink-soft); }
 
   .roster {
     list-style: none;
@@ -144,7 +145,7 @@
     grid-template-columns: 9.25rem 1fr;
     gap: .05rem 1rem;
     align-items: baseline;
-    padding: .42rem 0;
+    padding: .32rem 0;
     border-bottom: 1px solid var(--gold-faint);
     line-height: 1.45;
   }
@@ -186,17 +187,17 @@
   .case.is-ok .case-status { display: inline-flex; color: var(--ok); }
   .case.is-bad .case-status { display: inline-flex; color: var(--bad); }
 
-  .case-text p { margin: 0 0 .4em; }
+  .case-text p { margin: 0 0 .3em; }
   .case-text p:last-child { margin-bottom: 0; }
   .case-text .bezug { font-style: italic; color: var(--ink-soft); }
 
   .cloze {
-    margin-top: 1rem;
-    padding: .2rem 0 .2rem 1rem;
+    margin-top: .85rem;
+    padding: .15rem 0 .15rem 1rem;
     border-left: 2px solid var(--gold-line);
   }
-  .cloze p { margin: 0; padding: .35rem 0; line-height: 2.3; }
-  .cloze p + p { margin-top: .4rem; padding-top: .75rem; border-top: 1px dashed var(--gold-faint); }
+  .cloze p { margin: 0; padding: .3rem 0; line-height: 2.2; }
+  .cloze p + p { margin-top: .3rem; padding-top: .6rem; border-top: 1px dashed var(--gold-faint); }
   .cloze b { font-weight: 600; }
 
   /* ---------- Lücken (Auswahlfelder) ---------- */
@@ -329,14 +330,19 @@
     cursor: pointer;
     transition: background-color .25s, color .25s, border-color .25s, box-shadow .25s;
   }
-  .btn:hover { background-color: var(--gold); color: #15110c; box-shadow: 0 0 26px rgba(201, 164, 103, .22); }
   .btn:active { transform: translateY(1px); }
   .btn:focus { outline: none; }
   .btn:focus-visible { outline: 1px solid var(--gold-hi); outline-offset: 4px; }
 
   .btn-quiet { border-width: 1px; border-color: var(--gold-line); color: var(--ink-soft); }
-  .btn-quiet:hover { background-color: var(--gold-wash); color: var(--gold-hi); border-color: var(--gold); box-shadow: none; }
-  .btn-quiet.is-armed { border-color: var(--bad); color: var(--bad); background-color: var(--bad-wash); }
+
+  /* Hover nur mit Maus – auf Touchgeräten bleibt der Button nach dem Antippen nicht eingefärbt */
+  @media (hover: hover) {
+    .btn:hover { background-color: var(--gold); color: #15110c; box-shadow: 0 0 26px rgba(201, 164, 103, .22); }
+    .btn-quiet:hover { background-color: var(--gold-wash); color: var(--gold-hi); border-color: var(--gold); box-shadow: none; }
+  }
+  .btn-quiet.is-armed,
+  .btn-quiet.is-armed:hover { border-color: var(--bad); color: var(--bad); background-color: var(--bad-wash); }
 
   .progress { width: min(100%, 18rem); margin: 1.3rem auto 0; }
   .meter { height: 2px; background: var(--gold-faint); overflow: hidden; }
@@ -402,6 +408,38 @@
     text-align: center;
   }
 
+  /* ---------- Handy/Tablet im iframe: Angebot, in eigenem Tab zu öffnen ---------- */
+  .open-tab {
+    margin: 0 0 clamp(1rem, 2.5vw, 1.4rem);
+    padding: clamp(.9rem, 2.4vw, 1.4rem) clamp(1rem, 3vw, 1.75rem);
+    border: 1px solid var(--gold);
+    background: rgba(201, 164, 103, .1);
+    font-size: clamp(1.15rem, 3.4vw, 2.6rem);
+    line-height: 1.35;
+    text-align: center;
+  }
+  .open-tab[hidden] { display: none; }
+  .open-tab p { margin: 0; }
+  .open-tab .btn {
+    display: inline-block;
+    margin-top: .7em;
+    font-size: .82em;
+    text-decoration: none;
+  }
+  .open-tab .open-tab-fallback { margin-top: .75em; font-size: .8em; color: var(--ink-soft); }
+  .open-tab .open-tab-fallback[hidden] { display: none; }
+  .open-tab-url {
+    display: block;
+    margin-top: .35em;
+    padding: .3em .6em;
+    border: 1px dashed var(--gold-line);
+    background: rgba(0, 0, 0, .35);
+    color: var(--gold-hi);
+    word-break: break-all;
+    -webkit-user-select: all;
+    user-select: all;
+  }
+
   @keyframes reveal-in {
     from { opacity: 0; transform: translateY(10px) scale(.985); }
     to { opacity: 1; transform: none; }
@@ -458,6 +496,13 @@
 </head>
 <body>
 <main class="wrap">
+
+  <!-- Erscheint nur, wenn der Lückentext auf Handy/Tablet in einem iframe (z. B. Genially) angezeigt wird -->
+  <div class="open-tab" id="open-tab" hidden>
+    <p>Auf dem Handy oder Tablet lässt sich der Lückentext in einem eigenen Tab leichter bearbeiten.</p>
+    <a class="btn" id="open-tab-link" href="#" target="_blank" rel="noopener">In neuem Tab öffnen</a>
+    <p class="open-tab-fallback" id="open-tab-fallback" hidden>Der Tab konnte hier nicht geöffnet werden. Rufe diese Adresse im Browser auf:<span class="open-tab-url" id="open-tab-url"></span></p>
+  </div>
 
   <header class="masthead">
     <h1>Lückentext</h1>
@@ -557,7 +602,7 @@
     <div class="reveal" id="reveal" hidden>
       <p class="reveal-kicker">Lösungskennwort</p>
       <p class="reveal-word" id="reveal-word"></p>
-      <p class="reveal-note">Notiere dir das Kennwort. Du brauchst es, um im Escape Room weiterzukommen.</p>
+      <p class="reveal-note" id="reveal-note">Notiere dir das Kennwort. Du brauchst es, um im Escape Room weiterzukommen.</p>
     </div>
   </section>
 
@@ -781,6 +826,34 @@
   });
 
   updateProgress();
+
+  /* ---------- Handy/Tablet im iframe: Öffnen in eigenem Tab anbieten ---------- */
+  var embedded;
+  try { embedded = window.self !== window.top; } catch (e) { embedded = true; }
+  var coarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  var pageUrl = location.href.split('#')[0];
+  var openBox = document.getElementById('open-tab');
+  var openLink = document.getElementById('open-tab-link');
+  var openFallback = document.getElementById('open-tab-fallback');
+  openLink.href = pageUrl;
+  document.getElementById('open-tab-url').textContent = pageUrl;
+  if (embedded && coarse) openBox.hidden = false;
+
+  openLink.addEventListener('click', function (e) {
+    e.preventDefault();
+    var w = null;
+    try { w = window.open(pageUrl, '_blank'); } catch (err) { w = null; }
+    if (w) {
+      try { w.opener = null; } catch (err) { /* ohne Bedeutung */ }
+      openFallback.hidden = true;
+    } else {
+      openFallback.hidden = false;   // z. B. wenn die Plattform neue Tabs aus dem iframe blockiert
+    }
+  });
+
+  if (!embedded) {
+    document.getElementById('reveal-note').textContent += ' Wechsle danach zurück in den Tab mit dem Escape Room.';
+  }
 })();
 </script>
 </body>
