@@ -11,7 +11,7 @@
 
   • Die Texte der Sachverhalte stehen weiter unten im <body>
     (am schnellsten mit Strg+F finden, z. B. „Sachverhalt 1“).
-  • Lösungen und Lösungskennwort stehen NICHT im Klartext in dieser Datei,
+  • Lösungen und Lösungszahl stehen NICHT im Klartext in dieser Datei,
     sondern nur als Prüfsummen bzw. verschlüsselt (Skript am Dateiende).
     Werden Antwortoptionen oder Lösungen geändert, müssen diese Werte neu erzeugt werden.
   • Schriften: Cinzel und EB Garamond (SIL Open Font License), direkt eingebettet.
@@ -150,6 +150,22 @@
   .kuerzel { font-weight: 600; color: var(--gold-hi); }
   .roster strong { font-weight: 600; color: var(--ink); }
   .roster .funktion { color: var(--ink-soft); }
+
+  .hint {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: .8rem;
+    align-items: start;
+    margin: .95rem 0 .2rem;
+    padding: .7rem 1.1rem .75rem .9rem;
+    border: 1px solid var(--gold-line);
+    border-radius: 3px;
+    background: var(--gold-wash);
+    line-height: 1.55;
+  }
+  .hint svg { width: 1.4em; height: 1.4em; margin-top: .1em; color: var(--gold); }
+  .hint p { margin: 0; }
+  .hint strong { font-weight: 600; color: var(--gold-hi); }
 
   /* ---------- Sachverhalte ---------- */
   .case-head {
@@ -309,6 +325,7 @@
   }
 
   .btn-row { display: flex; flex-wrap: wrap; justify-content: center; gap: .8rem 1rem; }
+  .btn-row-sub { margin-top: .8rem; gap: .6rem .8rem; }
 
   .btn {
     -webkit-appearance: none;
@@ -328,16 +345,19 @@
     cursor: pointer;
     transition: background-color .25s, color .25s, border-color .25s, box-shadow .25s;
   }
-  .btn:active { transform: translateY(1px); }
+  .btn:not(:disabled):active { transform: translateY(1px); }
   .btn:focus { outline: none; }
   .btn:focus-visible { outline: 1px solid var(--gold-hi); outline-offset: 4px; }
+  .btn:disabled { opacity: .38; cursor: default; }
 
+  .btn-check { min-width: 16rem; }
   .btn-quiet { border-width: 1px; border-color: var(--gold-line); color: var(--ink-soft); }
+  .btn-small { min-width: 0; padding: .72em 1.3em .68em; font-size: .85rem; letter-spacing: .12em; }
 
   /* Hover nur mit Maus – auf Touchgeräten bleibt der Button nach dem Antippen nicht eingefärbt */
   @media (hover: hover) {
-    .btn:hover { background-color: var(--gold); color: #15110c; box-shadow: 0 0 26px rgba(201, 164, 103, .22); }
-    .btn-quiet:hover { background-color: var(--gold-wash); color: var(--gold-hi); border-color: var(--gold); box-shadow: none; }
+    .btn:not(:disabled):hover { background-color: var(--gold); color: #15110c; box-shadow: 0 0 26px rgba(201, 164, 103, .22); }
+    .btn-quiet:not(:disabled):hover { background-color: var(--gold-wash); color: var(--gold-hi); border-color: var(--gold); box-shadow: none; }
   }
   .btn-quiet.is-armed,
   .btn-quiet.is-armed:hover { border-color: var(--bad); color: var(--bad); background-color: var(--bad-wash); }
@@ -347,13 +367,14 @@
   .meter span { display: block; width: 0; height: 100%; background: var(--gold); transition: width .35s ease; }
   .progress-text { margin: .4rem 0 0; font-size: .94rem; font-style: italic; line-height: 1.4; color: var(--ink-muted); }
 
-  .feedback { max-width: 34rem; margin: 1.1rem auto 0; font-size: 1.06rem; font-weight: 600; line-height: 1.5; }
+  .feedback { max-width: 38rem; margin: 1.1rem auto 0; font-size: 1.06rem; font-weight: 500; line-height: 1.5; }
+  .feedback strong { font-weight: 600; }
   .feedback:empty { display: none; }
   .feedback.is-hint { color: var(--gold-hi); }
   .feedback.is-bad { color: var(--bad); }
   .feedback.is-ok { color: var(--ok); }
 
-  /* ---------- Lösungskennwort ---------- */
+  /* ---------- Lösungszahl ---------- */
   .reveal {
     max-width: 26rem;
     margin: 1.6rem auto .3rem;
@@ -377,11 +398,14 @@
   }
 
   .reveal-word {
-    margin: .15rem 0 .3rem;
-    font-size: clamp(2.4rem, 8.5vw, 3.4rem);
-    font-weight: 600;
-    line-height: 1.15;
+    margin: .2rem 0 .35rem;
+    font-family: var(--f-display);
+    font-size: clamp(3rem, 11vw, 4.4rem);
+    font-weight: 400;
+    line-height: 1.1;
     letter-spacing: .05em;
+    text-indent: .05em;
+    font-variant-numeric: lining-nums;
     color: var(--gold-hi);
     filter: drop-shadow(0 0 16px rgba(232, 205, 152, .22));
   }
@@ -513,6 +537,10 @@
   <!-- ===================== Einleitung ===================== -->
   <section class="panel intro" aria-label="Aufgabe">
     <p class="lead">Befülle die Lücken so, dass sie, bezogen auf die Prüfpunkte <em>Rechtsfolge</em> und <em>Anordnungskompetenz</em>, korrekt sind.</p>
+    <div class="hint">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="16.5" r="4.5"/><path d="M10.7 13.3 20.5 3.5M17 7l2.5 2.5M14.5 9.5l2 2"/></g></svg>
+      <p>Um die Aufgabe zu lösen, klicke unten auf „Prüfen“. Die Lösungszahl erscheint nur, wenn <strong>alle</strong> Lücken korrekt ausgefüllt sind. Sobald du sie siehst, kannst du zurück ins Hauptmenü und mit den anderen Aufgaben fortfahren.</p>
+    </div>
     <p class="roster-intro">Folgende Personen können hier eine Rolle übernehmen:</p>
     <ul class="roster">
       <li><span class="kuerzel">SB</span><span><strong>PK Fleißig</strong>, <span class="funktion">handelnder Beamter / Sachbearbeiter / Gewahrsamsbeamter</span></span></li>
@@ -589,8 +617,11 @@
   <!-- ===================== Auswertung ===================== -->
   <section class="panel actions" aria-label="Auswertung">
     <div class="btn-row">
-      <button type="button" class="btn" id="btn-check">Prüfen</button>
-      <button type="button" class="btn btn-quiet" id="btn-reset">Von vorne beginnen</button>
+      <button type="button" class="btn btn-check" id="btn-check">Prüfen</button>
+    </div>
+    <div class="btn-row btn-row-sub">
+      <button type="button" class="btn btn-quiet btn-small" id="btn-reset-wrong" disabled>Falsche Sachverhalte zurücksetzen</button>
+      <button type="button" class="btn btn-quiet btn-small" id="btn-reset">Alles zurücksetzen</button>
     </div>
     <div class="progress">
       <div class="meter" aria-hidden="true"><span id="meter"></span></div>
@@ -598,9 +629,9 @@
     </div>
     <p class="feedback" id="feedback" role="status" aria-live="polite"></p>
     <div class="reveal" id="reveal" hidden>
-      <p class="reveal-kicker">Lösungskennwort</p>
+      <p class="reveal-kicker">Lösungszahl</p>
       <p class="reveal-word" id="reveal-word"></p>
-      <p class="reveal-note" id="reveal-note">Notiere dir das Kennwort. Du brauchst es, um im Escape Room weiterzukommen.</p>
+      <p class="reveal-note" id="reveal-note">Notiere dir die Lösungszahl. Du kannst jetzt zurück ins Hauptmenü und mit den anderen Aufgaben fortfahren.</p>
     </div>
   </section>
 
@@ -628,9 +659,9 @@
     ]
   };
 
-  /* ---------- Prüfsummen und verschlüsseltes Kennwort (keine Klartext-Lösungen) ---------- */
+  /* ---------- Prüfsummen und verschlüsselte Lösungszahl (keine Klartext-Lösungen) ---------- */
   var CHECK = {"1":"7oado9700i","2":"1tyqauojdg2","3":"y6nust2wsd","4":"1mnaqwczmef"};
-  var LOCK = [1806,23267,17867,55994,29078];
+  var LOCK = [1913,23225,17799,56051,29125,52733,18882,64641,51646,17935,55186,62002];
   var S1 = 40503, S2 = 91138;
 
   function hash(str, seed) {
@@ -655,11 +686,13 @@
   var gaps = toArray(document.querySelectorAll('select.gap'));
   var btnCheck = document.getElementById('btn-check');
   var btnReset = document.getElementById('btn-reset');
+  var btnResetWrong = document.getElementById('btn-reset-wrong');
   var feedback = document.getElementById('feedback');
   var meter = document.getElementById('meter');
   var progressText = document.getElementById('progress-text');
   var reveal = document.getElementById('reveal');
   var revealWord = document.getElementById('reveal-word');
+  var revealNote = document.getElementById('reveal-note');
   var RESET_LABEL = btnReset.textContent;
 
   /* ---------- Auswahlfelder befüllen ---------- */
@@ -689,7 +722,11 @@
     for (var i = 0; i < LOCK.length; i++) {
       out += String.fromCharCode(LOCK[i] ^ (hash(key, S2 + i) % 65536));
     }
-    return out;
+    return out.replace(/\s+$/, '');
+  }
+
+  function badCases() {
+    return cases.filter(function (c) { return c.classList.contains('is-bad'); });
   }
 
   function setCaseState(c, state) {
@@ -699,11 +736,26 @@
     if (state === true) st.innerHTML = ICON_OK + '<span>Korrekt</span>';
     else if (state === false) st.innerHTML = ICON_BAD + '<span>Noch nicht korrekt</span>';
     else st.innerHTML = '';
+    // „Falsche Sachverhalte zurücksetzen“ ist nur aktiv, wenn ein Sachverhalt rot markiert ist
+    btnResetWrong.disabled = badCases().length === 0;
   }
 
-  function say(kind, text) {
+  function clearGap(s) {
+    s.selectedIndex = 0;
+    s.classList.add('is-empty');
+    s.classList.remove('is-missing');
+  }
+
+  // Rückmeldung: erster Satz fett, Rest normal
+  function say(kind, strongText, restText) {
     feedback.className = 'feedback' + (kind ? ' is-' + kind : '');
-    feedback.textContent = text;
+    feedback.textContent = '';
+    if (strongText) {
+      var b = document.createElement('strong');
+      b.textContent = strongText;
+      feedback.appendChild(b);
+    }
+    if (restText) feedback.appendChild(document.createTextNode(' ' + restText));
   }
 
   function hideReveal() {
@@ -722,13 +774,20 @@
     return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   }
 
+  function scrollToY(top) {
+    try { window.scrollTo({ top: top, behavior: reduceMotion() ? 'auto' : 'smooth' }); }
+    catch (e) { window.scrollTo(0, top); }
+  }
+
   function bringIntoView(el) {
     var r = el.getBoundingClientRect();
     var vh = window.innerHeight || document.documentElement.clientHeight;
     if (r.top >= 0 && r.bottom <= vh) return;
-    var top = window.pageYOffset + r.top - Math.max(16, (vh - r.height) / 2);
-    try { window.scrollTo({ top: top, behavior: reduceMotion() ? 'auto' : 'smooth' }); }
-    catch (e) { window.scrollTo(0, top); }
+    scrollToY(window.pageYOffset + r.top - Math.max(16, (vh - r.height) / 2));
+  }
+
+  function focusGap(s) {
+    try { s.focus({ preventScroll: true }); } catch (e) { /* ältere Browser */ }
   }
 
   /* ---------- Ereignisse ---------- */
@@ -737,7 +796,7 @@
     sel.classList.toggle('is-empty', sel.value === '');
     sel.classList.remove('is-missing');
     setCaseState(sel.closest('.case'), null);
-    say('', '');
+    say('');
     hideReveal();
     updateProgress();
   }
@@ -748,15 +807,14 @@
     gaps.forEach(function (s) { s.classList.remove('is-missing'); });
 
     if (missing.length) {
-      cases.forEach(function (c) { setCaseState(c, null); });
+      // Bereits bewertete Sachverhalte behalten ihre Markierung
       hideReveal();
       missing.forEach(function (s) {
         void s.offsetWidth;            // Animation erneut auslösen
         s.classList.add('is-missing');
       });
-      say('hint', missing.length === 1
-        ? 'Es ist noch 1 Lücke offen. Fülle alle Lücken aus, bevor du prüfst.'
-        : 'Es sind noch ' + missing.length + ' Lücken offen. Fülle alle Lücken aus, bevor du prüfst.');
+      say('hint', missing.length === 1 ? 'Es ist noch 1 Lücke offen.' : 'Es sind noch ' + missing.length + ' Lücken offen.',
+        'Fülle alle Lücken aus, bevor du prüfst.');
       return;
     }
 
@@ -780,10 +838,28 @@
     if (okCount === 0) lead = 'Noch kein Sachverhalt ist vollständig korrekt.';
     else if (okCount === 1) lead = '1 von ' + cases.length + ' Sachverhalten ist korrekt.';
     else lead = okCount + ' von ' + cases.length + ' Sachverhalten sind korrekt.';
-    say('bad', lead + ' Überarbeite die rot markierten Sachverhalte und prüfe erneut.');
+    say('bad', lead, 'Überarbeite die rot markierten Sachverhalte und prüfe erneut. Die Lösungszahl erscheint erst, wenn alle Sachverhalte korrekt sind.');
   }
 
-  /* „Von vorne beginnen“ mit Rückfrage per zweitem Klick (keine Browser-Dialoge, da im iframe) */
+  /* Nur die rot markierten Sachverhalte leeren – korrekt gelöste bleiben erhalten */
+  function resetWrong() {
+    disarmReset();
+    var bad = badCases();
+    if (!bad.length) return;
+    bad.forEach(function (c) {
+      toArray(c.querySelectorAll('select.gap')).forEach(clearGap);
+      setCaseState(c, null);
+    });
+    hideReveal();
+    updateProgress();
+    say('hint', bad.length === 1 ? 'Der falsche Sachverhalt wurde zurückgesetzt.' : 'Die falschen Sachverhalte wurden zurückgesetzt.',
+      'Korrekt gelöste Sachverhalte bleiben erhalten.');
+    var first = bad[0];
+    scrollToY(window.pageYOffset + first.getBoundingClientRect().top - 16);
+    focusGap(first.querySelector('select.gap'));
+  }
+
+  /* „Alles zurücksetzen“ mit Rückfrage per zweitem Klick (keine Browser-Dialoge, da im iframe) */
   var armed = false, armTimer = null;
 
   function disarmReset() {
@@ -794,28 +870,24 @@
   }
 
   function resetAll() {
-    gaps.forEach(function (s) {
-      s.selectedIndex = 0;
-      s.classList.add('is-empty');
-      s.classList.remove('is-missing');
-    });
+    gaps.forEach(clearGap);
     cases.forEach(function (c) { setCaseState(c, null); });
-    say('', '');
+    say('');
     hideReveal();
     updateProgress();
-    try { window.scrollTo({ top: 0, behavior: reduceMotion() ? 'auto' : 'smooth' }); }
-    catch (e) { window.scrollTo(0, 0); }
-    try { gaps[0].focus({ preventScroll: true }); } catch (e) { /* ältere Browser */ }
+    scrollToY(0);
+    focusGap(gaps[0]);
   }
 
   btnCheck.addEventListener('click', check);
+  btnResetWrong.addEventListener('click', resetWrong);
 
   btnReset.addEventListener('click', function () {
     if (updateProgress() === 0) { disarmReset(); resetAll(); return; }
     if (!armed) {
       armed = true;
       btnReset.classList.add('is-armed');
-      btnReset.textContent = 'Wirklich von vorne beginnen?';
+      btnReset.textContent = 'Wirklich alles zurücksetzen?';
       armTimer = setTimeout(disarmReset, 4000);
       return;
     }
@@ -850,7 +922,8 @@
   });
 
   if (!embedded) {
-    document.getElementById('reveal-note').textContent += ' Wechsle danach zurück in den Tab mit dem Escape Room.';
+    revealNote.textContent = 'Notiere dir die Lösungszahl und kehre zurück ins Hauptmenü. ' +
+      'Dort kannst du mit den anderen Aufgaben fortfahren.';
   }
 })();
 </script>
