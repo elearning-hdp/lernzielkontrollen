@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lückentext (Auswahl)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<script>if (window.self !== window.top) document.documentElement.classList.add('eingebettet');</script>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #161B22;              /* Hintergrund, wenn die Übung direkt im Browser geöffnet wird */
+    --bg-im-rahmen: transparent; /* Hintergrund, wenn die Übung in Genially eingebettet ist */
+    --max-breite: none;         /* none = volle Breite des Rahmens; z. B. 46rem = schmalerer Textblock */
+    --ink: #E6EBF0;
+    --muted: #9AA7B3;
+    --line: #2E3843;
+    --field: #212933;
+    --field-line: #3D4957;
+    --accent: #5BB8C4;
+    --ok: #7EDDA3;   --ok-bg: rgba(92, 201, 138, .14);
+    --bad: #FF8F84;  --bad-bg: rgba(240, 122, 110, .15);
+    --sol: #F0CD6E;  --sol-bg: rgba(232, 193, 90, .14);
+  }
+  * { box-sizing: border-box; }
+  /* Schriftgröße wächst mit der Breite des Rahmens mit */
+  html { font-size: clamp(15px, 0.9vw + 9px, 22px); }
+  html.eingebettet, html.eingebettet body { background: var(--bg-im-rahmen); }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  body { padding: clamp(16px, 4vw, 40px); }
+  main { max-width: var(--max-breite); margin: 0 auto; }
+
+  h1 { font-size: 1.5rem; line-height: 1.25; margin: 0 0 .4rem; font-weight: 700; letter-spacing: .005em; }
+  .anleitung { color: var(--muted); margin: 0 0 1.75rem; line-height: 1.5; }
+
+  .text p { font-size: 1.125rem; line-height: 2.4; margin: 0 0 1rem; }
+  .text ul { font-size: 1.125rem; line-height: 2.4; margin: 0 0 1rem; padding-left: 1.5rem; }
+  .text li::marker { color: var(--accent); }
+  .text strong { font-weight: 700; }
+
+  /* ---------- Lücken als Aufklappmenü ---------- */
+  .gap {
+    font: inherit;
+    line-height: 1.5;
+    color: var(--ink);
+    background: var(--field);
+    border: 0;
+    border-bottom: 2px solid var(--field-line);
+    border-radius: 4px 4px 0 0;
+    padding: .1rem 1.9em .1rem .6em;
+    margin: 0 .1rem;
+    max-width: 100%;
+    text-align: center;
+    text-align-last: center;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    transition: background-color .15s, border-color .15s, color .15s;
+  }
+  .gap::-ms-expand { display: none; }
+  .gap:hover { border-bottom-color: var(--accent); }
+  .gap:focus { outline: none; }
+  .gap:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-bottom-color: var(--accent); }
+  .gap option { background: var(--field); color: var(--ink); text-align: left; }
+  .gap option:disabled { color: var(--muted); }
+  .gap.leer { color: var(--muted); }
+  .gap.richtig { background: var(--ok-bg);  border-bottom-color: var(--ok);  color: var(--ok); }
+  .gap.falsch  { background: var(--bad-bg); border-bottom-color: var(--bad); color: var(--bad); }
+  .gap.geloest { background: var(--sol-bg); border-bottom-color: var(--sol); color: var(--sol); border-bottom-style: dashed; }
+  .gap:disabled { opacity: 1; cursor: default; -webkit-text-fill-color: currentColor; }
+
+  .gap-huelle { white-space: nowrap; position: relative; display: inline-block; max-width: 100%; }
+  /* Pfeil nach unten: zeigt, dass sich die Lücke aufklappen lässt */
+  .pfeil {
+    position: absolute; right: .75em; top: 50%;
+    width: .45em; height: .45em;
+    border-right: 2px solid var(--accent);
+    border-bottom: 2px solid var(--accent);
+    transform: translateY(-70%) rotate(45deg);
+    pointer-events: none;
+  }
+  .gap-huelle:not([data-status="offen"]) .pfeil { display: none; }
+  .zeichen { position: absolute; right: .55em; top: 50%; transform: translateY(-50%); line-height: 1; font-weight: 700; pointer-events: none; }
+  .zeichen.richtig { color: var(--ok); }
+  .zeichen.falsch  { color: var(--bad); }
+
+  .extern { display: inline-block; margin: 0 0 1.5rem; color: var(--accent); font-weight: 700; text-underline-offset: 3px; }
+  .extern[hidden] { display: none; }
+  .extern:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 2px; }
+
+  /* Hinweis für die Erstellerin / den Ersteller, falls Lücken und Auswahllisten nicht zusammenpassen */
+  .autorhinweis { margin: 0 0 1.5rem; padding: .75rem 1rem; border: 1px dashed var(--sol); border-radius: 8px; color: var(--sol); font-size: .9rem; line-height: 1.5; }
+  .autorhinweis[hidden] { display: none; }
+  .autorhinweis ul { margin: .3rem 0 0; padding-left: 1.2rem; }
+
+  .auswertung { margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+  .ergebnis { margin: 0 0 1rem; font-size: 1.05rem; line-height: 1.5; }
+  .ergebnis:empty { display: none; }
+  .knoepfe { display: flex; flex-wrap: wrap; gap: .6rem; }
+
+  button {
+    font: inherit;
+    font-size: 1rem;
+    padding: .6rem 1.1rem;
+    border-radius: 6px;
+    border: 1px solid var(--accent);
+    cursor: pointer;
+    transition: background-color .15s, color .15s;
+  }
+  button[hidden] { display: none; }
+  .primaer   { background: var(--accent); color: #0D1F23; font-weight: 700; }
+  .primaer:hover { background: #74C8D3; border-color: #74C8D3; }
+  .sekundaer { background: transparent; color: var(--accent); }
+  .sekundaer:hover { background: rgba(91, 184, 196, .12); }
+  button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+  @media (prefers-reduced-motion: reduce) { .gap, button { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+
+  <!-- ====== HIER ANPASSEN: Überschrift und Arbeitsanweisung ====== -->
+  <h1>Einsatz des DEIG</h1>
+  <p class="anleitung">Wähle in jeder Lücke die passende Antwort aus dem Aufklappmenü aus und prüfe anschließend deine Antworten.</p>
+  <a class="extern" id="extern" href="#" target="_blank" rel="noopener" hidden>Übung in eigenem Fenster öffnen</a>
+  <div class="autorhinweis" id="autorhinweis" role="note" hidden></div>
+
+  <!--
+    ====== HIER ANPASSEN: Der Lückentext ======
+    - Jede Lücke steht in eckigen Klammern, darin die RICHTIGE Antwort:   [statischen]
+    - Mehrere richtige Antworten mit |:       [Glucose|Glukose]
+      (beide werden als richtig gewertet, wenn sie in der Auswahl stehen;
+      die erste wird bei „Lösungen anzeigen" eingesetzt)
+    - Einfacher Zeilenumbruch = wird ignoriert, der Text läuft weiter.
+    - Eine Leerzeile beginnt einen neuen Absatz.
+    - Eine Zeile, die mit "- " beginnt, wird ein Aufzählungspunkt.
+    - Fett:   <strong>Wort</strong>     Kursiv:   <em>Wort</em>
+    - Beliebig viele Lücken möglich.
+  -->
+  <script type="text/plain" id="lueckentext">
+Das DEIG sollte bevorzugt in [statischen] Lagen von einem Streifenteam zum Einsatz kommen.
+Grundsätzlich gelten beim Agieren mit einem DEIG die Standards des teamorientierten Vorgehens.
+Zum Beispiel ist die jeweilige [Sicherungsstellung] von Bedeutung, sodass der Einwirkbereich für die Schützin oder den Schützen frei ist und eine Eigen- oder Fremdgefährdung ausgeschlossen werden kann.
+Die optimale Entfernung zum Störer / zur Störerin mit Kartuschen der Länge [7,62m] beträgt [3-5m].
+
+Sobald das DEIG aus dem Holster genommen und der Sicherungshebel nach oben gedrückt wird, schaltet sich das DEIG ein.
+Durch das Betätigen des Auslösers wird eine Kartusche abgefeuert und automatisch ein [5-Sekunden-Zyklus] ausgelöst.
+Sobald die gewünschte Wirkung zu erkennen ist, tritt der sichernde Beamte / die Beamtin an die Person heran und geht in die Festnahme über.
+Der Taserschütze / die Taserschützin bewegt sich lageangepasst und sucht sich einen neuen [Anhaltepunkt].
+Mit der [ARC-Taste] wäre es nun möglich, über die Kabel der verschossenen Kartusche Strom über die Pfeilelektroden nachzuführen.
+Ist die Festnahme erfolgt, können [durch eingesetzte Polizeibeamt/innen und Rettungskräfte] die Pfeile entfernt werden.
+  </script>
+
+  <!--
+    ====== HIER ANPASSEN: Auswahl für die Aufklappmenüs ======
+    - Eine Zeile pro Lücke, in derselben Reihenfolge wie die Lücken im Text.
+    - Die einzelnen Antworten werden durch ein Semikolon ; getrennt (kein Komma,
+      weil Kommas in Antworten wie „7,62m" vorkommen können).
+    - „Lücke 1:" am Zeilenanfang ist erlaubt, aber nicht nötig.
+    - Fehlt die richtige Antwort in einer Zeile, wird sie automatisch ergänzt.
+  -->
+  <script type="text/plain" id="auswahl">
+Lücke 1: LebEl- ; dynamischen ; statischen
+Lücke 2: Situation ; Ausrüstung ; Sicherungsstellung ; Lage
+Lücke 3: 7,62m ; 6,50m ; 9m
+Lücke 4: 2-6m ; 3-4m ; 3-5m ; 4-6m
+Lücke 5: 4-Sekunden-Zyklus ; 5-Sekunden-Zyklus ; 2-Sekunden-Zyklus ; 6-Sekunden-Zyklus ; 3-Sekunden-Zyklus
+Lücke 6: Anhaltepunkt ; Partner ; Störer
+Lücke 7: Menü-Taste ; ARC-Taste
+Lücke 8: nur durch Rettungskräfte ; nur durch eingesetzte Polizeibeamt/innen ; durch Feuerwehrkräfte ; durch eingesetzte Polizeibeamt/innen und Rettungskräfte
+  </script>
+
+  <div class="text" id="text"></div>
+
+  <div class="auswertung">
+    <p class="ergebnis" id="ergebnis" aria-live="polite"></p>
+    <div class="knoepfe">
+      <button type="button" class="primaer" id="pruefen">Antworten prüfen</button>
+      <button type="button" class="sekundaer" id="loesungen" hidden>Lösungen anzeigen</button>
+      <button type="button" class="sekundaer" id="neu" hidden>Von vorn beginnen</button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  // ====== HIER ANPASSEN: Einstellungen ======
+  const EINSTELLUNGEN = {
+    loesungenAnzeigenErlaubt: true, // false = Knopf "Lösungen anzeigen" erscheint nie
+    platzhalter: 'auswählen',       // Text in einer noch leeren Lücke
+
+    // Reihenfolge der Antworten im Aufklappmenü:
+    //   'angegeben'    = so wie unten in der Auswahl eingetragen
+    //   'zufall'       = bei jedem Laden (und „Von vorn beginnen") neu gemischt
+    //   'alphabetisch' = nach Alphabet sortiert
+    auswahlReihenfolge: 'angegeben'
+  };
+
+  // ---------- Ab hier nichts mehr ändern nötig ----------
+  const textEl = document.getElementById('text');
+  const ergebnisEl = document.getElementById('ergebnis');
+  const btnPruefen = document.getElementById('pruefen');
+  const btnLoesungen = document.getElementById('loesungen');
+  const btnNeu = document.getElementById('neu');
+
+  const luecken = []; // { nr, select, antworten, optionen, huelle, zeichen, status: 'offen'|'richtig'|'falsch'|'geloest' }
+  const autorHinweise = [];
+
+  const norm = s => s.trim().replace(/\s+/g, ' ').toLocaleLowerCase('de');
+  const gleich = (a, b) => norm(a) === norm(b);
+  const gesperrt = l => l.status === 'richtig' || l.status === 'geloest';
+
+  // Auswahllisten einlesen: eine Zeile pro Lücke, Antworten durch ; getrennt
+  const auswahlZeilen = document.getElementById('auswahl').textContent
+    .split('\n')
+    .map(z => z.replace(/^\s*[-*•]?\s*(Lücke\s*\d+\s*:)?/i, '').trim())
+    .filter(Boolean)
+    .map(z => z.split(';').map(o => o.trim()).filter(Boolean));
+
+  function mischen(liste) {
+    for (let i = liste.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [liste[i], liste[j]] = [liste[j], liste[i]];
+    }
+    return liste;
+  }
+
+  // Füllt das Aufklappmenü einer Lücke (Platzhalter + Antworten in der gewünschten Reihenfolge)
+  function optionenAufbauen(l) {
+    let reihe = l.optionen.slice();
+    if (EINSTELLUNGEN.auswahlReihenfolge === 'zufall') mischen(reihe);
+    else if (EINSTELLUNGEN.auswahlReihenfolge === 'alphabetisch') reihe.sort((a, b) => a.localeCompare(b, 'de', { numeric: true }));
+    l.select.textContent = '';
+    const platz = new Option(EINSTELLUNGEN.platzhalter, '', true, true);
+    platz.disabled = true;
+    l.select.add(platz);
+    reihe.forEach(text => l.select.add(new Option(text, text)));
+    l.select.value = '';
+  }
+
+  // Erzeugt ein Aufklappmenü für eine Lücke
+  function lueckeErzeugen(inhalt) {
+    const antworten = inhalt.split('|').map(a => a.trim()).filter(Boolean);
+    const nr = luecken.length + 1;
+    const zeile = auswahlZeilen[nr - 1];
+    const optionen = [];
+    (zeile || []).forEach(o => { if (!optionen.some(x => gleich(x, o))) optionen.push(o); });
+    if (!zeile) {
+      autorHinweise.push(`Für Lücke ${nr} („${antworten[0]}“) fehlt eine Zeile in der Auswahl.`);
+    }
+    if (!optionen.some(o => antworten.some(a => gleich(a, o)))) {
+      if (zeile) autorHinweise.push(`In der Auswahl für Lücke ${nr} fehlt die richtige Antwort „${antworten[0]}“ – sie wurde ergänzt.`);
+      optionen.push(antworten[0]);
+    }
+
+    const select = document.createElement('select');
+    select.className = 'gap leer';
+    select.setAttribute('aria-label', 'Lücke ' + nr);
+    const pfeil = document.createElement('span');
+    pfeil.className = 'pfeil';
+    pfeil.setAttribute('aria-hidden', 'true');
+    const zeichen = document.createElement('span');
+    zeichen.className = 'zeichen';
+    zeichen.setAttribute('aria-hidden', 'true');
+    const huelle = document.createElement('span');
+    huelle.className = 'gap-huelle';
+    huelle.dataset.status = 'offen';
+    huelle.append(select, pfeil, zeichen);
+
+    const l = { nr, select, antworten, optionen, huelle, zeichen, status: 'offen' };
+    luecken.push(l);
+    optionenAufbauen(l);
+
+    select.addEventListener('change', () => {
+      if (l.status === 'falsch') l.status = 'offen';
+      darstellen(l);
+    });
+    return l;
+  }
+
+  // Setzt Text mit Lücken und Formatierung (z. B. <strong>) in ein Element ein
+  function inhaltEinsetzen(ziel, text) {
+    const neue = [];
+    ziel.innerHTML = text.replace(/\[([^\]]+)\]/g, (ganz, inhalt) => {
+      if (!inhalt.trim()) return ganz;
+      neue.push(lueckeErzeugen(inhalt));
+      return '<span data-luecke="' + (neue.length - 1) + '"></span>';
+    });
+    ziel.querySelectorAll('span[data-luecke]').forEach(platz => {
+      platz.replaceWith(neue[Number(platz.dataset.luecke)].huelle);
+    });
+  }
+
+  // Text einlesen: Leerzeile = neuer Absatz, Zeile mit "- " = Aufzählungspunkt
+  const quelle = document.getElementById('lueckentext').textContent.trim();
+  quelle.split(/\n\s*\n/).forEach(block => {
+    let absatz = [];
+    let liste = null;
+    const absatzAbschliessen = () => {
+      if (absatz.length === 0) return;
+      const p = document.createElement('p');
+      inhaltEinsetzen(p, absatz.join(' ').replace(/\s+/g, ' '));
+      textEl.append(p);
+      absatz = [];
+    };
+    block.split('\n').forEach(zeile => {
+      const punkt = zeile.match(/^\s*[-•]\s+(.*)$/);
+      if (punkt) {
+        absatzAbschliessen();
+        if (!liste) { liste = document.createElement('ul'); textEl.append(liste); }
+        const li = document.createElement('li');
+        inhaltEinsetzen(li, punkt[1].trim());
+        liste.append(li);
+      } else if (zeile.trim()) {
+        liste = null;
+        absatz.push(zeile.trim());
+      }
+    });
+    absatzAbschliessen();
+  });
+
+  if (auswahlZeilen.length > luecken.length) {
+    autorHinweise.push(`Die Auswahl hat ${auswahlZeilen.length} Zeilen, der Text aber nur ${luecken.length} Lücken. Die überzähligen Zeilen werden nicht verwendet.`);
+  }
+  // Passen Text und Auswahl nicht zusammen, wird das oben auf der Seite angezeigt
+  if (autorHinweise.length) {
+    const box = document.getElementById('autorhinweis');
+    box.innerHTML = '<strong>Hinweis zur Erstellung:</strong><ul></ul>';
+    autorHinweise.forEach(t => {
+      const li = document.createElement('li');
+      li.textContent = t;
+      box.querySelector('ul').append(li);
+    });
+    box.hidden = false;
+    autorHinweise.forEach(t => console.warn('Lückentext:', t));
+  }
+
+  function darstellen(l) {
+    const s = l.select;
+    s.classList.remove('richtig', 'falsch', 'geloest');
+    if (l.status !== 'offen') s.classList.add(l.status);
+    s.classList.toggle('leer', !s.value);
+    s.disabled = gesperrt(l);
+    s.setAttribute('aria-invalid', l.status === 'falsch' ? 'true' : 'false');
+    l.huelle.dataset.status = l.status;
+    l.zeichen.className = 'zeichen ' + l.status;
+    l.zeichen.textContent = { richtig: '✓', falsch: '✗' }[l.status] || '';
+    const zusatz = { richtig: ', richtig', falsch: ', falsch', geloest: ', Lösung eingesetzt' }[l.status] || '';
+    s.setAttribute('aria-label', 'Lücke ' + l.nr + zusatz);
+  }
+
+  // Auf dem Handy innerhalb von Genially: Link zum Öffnen in eigenem Fenster anzeigen
+  (function () {
+    const eingebettet = window.self !== window.top;
+    const kleinerBildschirm = Math.min(screen.width, screen.height) < 600;
+    if (eingebettet && kleinerBildschirm) {
+      const link = document.getElementById('extern');
+      link.href = location.href;
+      link.hidden = false;
+    }
+  })();
+
+  function pruefen(perTastatur) {
+    luecken.forEach(l => {
+      if (gesperrt(l)) return;
+      const wahl = l.select.value;
+      l.status = wahl && l.antworten.some(a => gleich(a, wahl)) ? 'richtig' : 'falsch';
+      darstellen(l);
+    });
+
+    const gesamt = luecken.length;
+    const richtig = luecken.filter(l => l.status === 'richtig').length;
+    const falsche = luecken.filter(l => l.status === 'falsch');
+
+    if (falsche.length === 0) {
+      ergebnisEl.textContent = richtig === gesamt
+        ? `Alle ${gesamt} Lücken richtig ausgefüllt. Sehr gut!`
+        : `${richtig} von ${gesamt} Lücken selbst gelöst.`;
+      btnPruefen.hidden = true;
+      btnLoesungen.hidden = true;
+      btnNeu.hidden = false;
+      if (perTastatur) btnNeu.focus();
+      return;
+    }
+
+    const leer = falsche.filter(l => !l.select.value).length;
+    const falschGewaehlt = falsche.length - leer;
+    const teile = [];
+    if (falschGewaehlt) teile.push(falschGewaehlt === 1 ? 'ändere die rot markierte Antwort' : 'ändere die rot markierten Antworten');
+    if (leer) teile.push(leer === 1 ? 'wähle für die leere Lücke eine Antwort' : `wähle für die ${leer} leeren Lücken eine Antwort`);
+    let satz = teile.join(', ') + ' und prüfe dann erneut.';
+    satz = satz.charAt(0).toUpperCase() + satz.slice(1);
+    ergebnisEl.textContent = `${richtig} von ${gesamt} Lücken richtig. ${satz}`;
+    btnPruefen.textContent = 'Erneut prüfen';
+    btnLoesungen.hidden = !EINSTELLUNGEN.loesungenAnzeigenErlaubt;
+    btnNeu.hidden = false;
+    if (perTastatur) falsche[0].select.focus();
+  }
+
+  function loesungenAnzeigen() {
+    luecken.forEach(l => {
+      if (l.status === 'richtig') return;
+      const opt = [...l.select.options].find(o => o.value && gleich(o.value, l.antworten[0]))
+               || [...l.select.options].find(o => o.value && l.antworten.some(a => gleich(a, o.value)));
+      if (opt) l.select.value = opt.value;
+      l.status = 'geloest';
+      darstellen(l);
+    });
+    const richtig = luecken.filter(l => l.status === 'richtig').length;
+    ergebnisEl.textContent = `${richtig} von ${luecken.length} Lücken selbst gelöst. Die gelb markierten Lücken zeigen die Lösung.`;
+    btnPruefen.hidden = true;
+    btnLoesungen.hidden = true;
+    btnNeu.hidden = false;
+  }
+
+  function neuBeginnen(perTastatur) {
+    luecken.forEach(l => {
+      l.status = 'offen';
+      l.select.disabled = false;
+      optionenAufbauen(l);
+      darstellen(l);
+    });
+    ergebnisEl.textContent = '';
+    btnPruefen.textContent = 'Antworten prüfen';
+    btnPruefen.hidden = false;
+    btnLoesungen.hidden = true;
+    btnNeu.hidden = true;
+    if (perTastatur && luecken[0]) luecken[0].select.focus();
+  }
+
+  btnPruefen.addEventListener('click', e => pruefen(e.detail === 0));
+  btnLoesungen.addEventListener('click', loesungenAnzeigen);
+  btnNeu.addEventListener('click', e => neuBeginnen(e.detail === 0));
+</script>
+<!-- =====================================================================
+     EINPASSEN: Die Übung füllt ihren Rahmen (z. B. in Genially) möglichst
+     ohne Scrollen. Die Schrift – und damit alles, was in rem angegeben ist –
+     wird so groß gewählt, wie es die Höhe UND die Breite des Rahmens erlauben.
+     Bei breiten Rahmen dürfen die Begriffe rechts neben Text bzw. Bild stehen.
+     Passt die Übung selbst bei kleinster Schrift nicht (z. B. Handy),
+     wird wie bisher gescrollt.
+     Einbau: diesen ganzen Block ganz unten einfügen, direkt vor dem schließenden body-Tag.
+     ===================================================================== -->
+<style>
+  /* Im eingepassten Zustand etwas weniger Rand, damit mehr Platz für die Übung bleibt */
+  html.einpassen body { padding: clamp(10px, 3.5vh, 36px) clamp(14px, 3.5vw, 40px); }
+  html.eingepasst .wortauswahl.fixiert { max-height: none; overflow: visible; }
+  /* Fotos (Bildvergleich): Höhe in rem statt nach Bildschirmhöhe, damit sie beim Einpassen mitwachsen */
+  html.eingepasst { --bild-hoehe: 12rem; }
+
+  /* Rückmeldung neben den Knöpfen statt darüber – spart eine Zeile Höhe */
+  html.einpassen .auswertung { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.25rem; margin-top: 1.1rem; padding-top: .9rem; }
+  html.einpassen .auswertung .knoepfe { order: 1; }
+  html.einpassen .auswertung .ergebnis { order: 2; flex: 1 1 18rem; margin: 0; }
+
+  /* Breiter Rahmen: Begriffe rechts neben Text bzw. Bild */
+  main.seitlich {
+    display: grid;
+    grid-template-columns: minmax(0, max-content) minmax(11rem, 17rem);
+    justify-content: center;
+    column-gap: clamp(1rem, 2.5vw, 2.25rem);
+    grid-auto-flow: row dense;
+    align-items: start;
+  }
+  main.seitlich > * { grid-column: 1 / -1; }
+  main.seitlich > .text,
+  main.seitlich > .bild { grid-column: 1; }
+  main.seitlich > .wortauswahl { grid-column: 2; margin: 0; }
+  main.seitlich > .wortauswahl.fixiert { position: static; box-shadow: none; }
+</style>
+<script>
+  // ====== HIER ANPASSEN: Einpassen in den Rahmen ======
+  const EINPASSEN = {
+    aktiv: true,     // false = wie früher: Schrift richtet sich nur nach der Breite, Höhe egal
+    minSchrift: 13,  // px – kleiner wird die Schrift nie. Passt es dann noch nicht, wird gescrollt.
+    minSchriftImRahmen: 11, // px – dasselbe, wenn die Übung eingebettet ist (Genially vergrößert
+                            //      die ganze Seite beim Anzeigen ohnehin auf Bildschirmgröße)
+    maxSchrift: 30,  // px – größer wird die Schrift nie (bei sehr großen Rahmen)
+    seitlich: true   // true = bei breiten Rahmen dürfen die Begriffe rechts neben Text/Bild stehen
+  };
+
+  // ---------- Ab hier nichts mehr ändern nötig ----------
+  (function () {
+    if (!EINPASSEN.aktiv) return;
+    const html = document.documentElement;
+    const main = document.querySelector('main');
+    if (!main) return;
+    html.classList.add('einpassen');
+
+    // Welche Anordnungen ausprobiert werden (Klassen an <main>). Eine Übung kann eigene
+    // Varianten vorgeben (window.einpassenVarianten) und eine Zusatzprüfung (window.einpassenPruefen).
+    let varianten = window.einpassenVarianten || [[], ['seitlich']];
+    if (!EINPASSEN.seitlich || !main.querySelector(':scope > .wortauswahl')) {
+      varianten = varianten.filter(v => !v.includes('seitlich'));
+    }
+    if (varianten.length === 0) varianten = [[]];
+    const alleKlassen = [...new Set(varianten.flat())];
+    // Platzhalter für die Rückmeldung nach dem Prüfen – damit später nichts überläuft
+    const PLATZHALTER = '10 von 12 richtig. Tausche die rot markierten Antworten aus, fülle die 2 leeren Stellen und prüfe dann noch einmal.';
+
+    let laeuft = false, nachholen = false, geplant = false;
+
+    // Passt alles in den Rahmen? Beim Suchen mit etwas Reserve, damit später nichts knapp überläuft.
+    const unterkante = () => main.getBoundingClientRect().bottom + window.scrollY
+      + parseFloat(getComputedStyle(document.body).paddingBottom);
+    const passt = (reserve = 6) => unterkante() <= window.innerHeight - reserve
+      && html.scrollWidth <= window.innerWidth + 1;
+    const ziehtGerade = () => html.classList.contains('ziehen') || document.body.classList.contains('zieht');
+
+    function setzen(px, v) {
+      html.style.fontSize = px + 'px';
+      alleKlassen.forEach(k => main.classList.toggle(k, v.includes(k)));
+    }
+
+    function einpassen() {
+      if (ziehtGerade()) { nachholen = true; return; }
+      laeuft = true;
+      const breite = window.innerWidth;
+      const eingebettet = window.self !== window.top;
+      const normal = Math.min(22, Math.max(15, 0.009 * breite + 9)); // bisherige Größe nach Breite
+      const minimum = eingebettet ? EINPASSEN.minSchriftImRahmen : EINPASSEN.minSchrift;
+      const unten = breite < 600 ? normal : Math.min(minimum, normal);
+      const oben = Math.max(unten, Math.min(EINPASSEN.maxSchrift, Math.max(normal, breite / 40)));
+
+      // Spätere Inhalte schon mit einplanen: Rückmeldung und alle Knöpfe
+      const ergebnis = document.getElementById('ergebnis');
+      let probe = null;
+      if (ergebnis && !ergebnis.textContent.trim()) {
+        probe = ergebnis.cloneNode(false);
+        probe.removeAttribute('id');
+        probe.removeAttribute('aria-live');
+        probe.setAttribute('aria-hidden', 'true');
+        probe.textContent = PLATZHALTER;
+        ergebnis.after(probe);
+      }
+      const versteckt = [...document.querySelectorAll('.knoepfe [hidden]')];
+      versteckt.forEach(b => { b.hidden = false; });
+      html.classList.add('eingepasst');
+      const x = window.scrollX, y = window.scrollY;
+
+      let beste = null;
+      varianten.forEach(v => {
+        setzen(unten, v);
+        if (!passt()) return;
+        let lo = unten, hi = oben;
+        setzen(hi, v);
+        if (passt()) lo = hi;
+        else {
+          while (hi - lo > 0.2) {
+            const mitte = (lo + hi) / 2;
+            setzen(mitte, v);
+            if (passt()) lo = mitte; else hi = mitte;
+          }
+        }
+        setzen(lo, v);
+        // Zusatzprüfung der Übung (z. B. Beschriftungen im Bild lesbar). Schlägt sie fehl,
+        // die größte kleinere Schrift suchen, bei der beides erfüllt ist.
+        const pruefung = window.einpassenPruefen;
+        if (typeof pruefung === 'function' && !pruefung()) {
+          const beides = () => passt() && pruefung();
+          setzen(unten, v);
+          if (!beides()) return;
+          let gut = unten, schlecht = lo;
+          while (schlecht - gut > 0.2) {
+            const mitte = (gut + schlecht) / 2;
+            setzen(mitte, v);
+            if (beides()) gut = mitte; else schlecht = mitte;
+          }
+          lo = gut;
+        }
+        // Eine spätere Anordnung wird nur genommen, wenn sie deutlich größere Schrift erlaubt
+        if (!beste || lo > beste.px * 1.08) beste = { px: lo, v };
+      });
+
+      if (probe) probe.remove();
+      versteckt.forEach(b => { b.hidden = true; });
+      if (beste) {
+        setzen(beste.px, beste.v);
+      } else {
+        // Passt nirgends: es wird gescrollt. Im eingebetteten Rahmen mit kleiner Schrift
+        // (möglichst wenig scrollen), sonst (z. B. Handy) in normaler Größe.
+        html.classList.remove('eingepasst');
+        setzen(normal, []);
+        html.style.fontSize = (eingebettet && breite >= 600) ? unten + 'px' : '';
+      }
+      window.scrollTo(x, y);
+      laeuft = false;
+    }
+
+    function planen() {
+      if (geplant) return;
+      geplant = true;
+      requestAnimationFrame(() => { geplant = false; einpassen(); });
+    }
+
+    window.addEventListener('resize', planen);
+    window.addEventListener('load', planen);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(planen);
+    // Wird der Inhalt später doch größer (z. B. ein langes Wort in einer Lücke), neu einpassen
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(() => {
+        if (!laeuft && html.classList.contains('eingepasst') && !passt(0)) planen();
+      }).observe(main);
+    }
+    // Während gezogen wird, nichts verschieben – erst danach
+    document.addEventListener('pointerup', () => { if (nachholen) { nachholen = false; setTimeout(planen, 0); } });
+    document.addEventListener('pointercancel', () => { if (nachholen) { nachholen = false; setTimeout(planen, 0); } });
+    einpassen();
+  })();
+</script>
+</body>
+</html>
