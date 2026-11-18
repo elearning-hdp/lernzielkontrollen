@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fragen mit Kurzantwort</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<script>if (window.self !== window.top) document.documentElement.classList.add('eingebettet');</script>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #161B22;              /* Hintergrund, wenn die Übung direkt im Browser geöffnet wird */
+    --bg-im-rahmen: transparent; /* Hintergrund, wenn die Übung in Genially eingebettet ist */
+    --max-breite: none;         /* none = volle Breite des Rahmens; z. B. 46rem = schmalerer Textblock */
+    --ink: #E6EBF0;
+    --muted: #9AA7B3;
+    --line: #2E3843;
+    --field: #212933;
+    --field-line: #3D4957;
+    --accent: #5BB8C4;
+    --ok: #7EDDA3;   --ok-bg: rgba(92, 201, 138, .14);
+    --bad: #FF8F84;  --bad-bg: rgba(240, 122, 110, .15);
+    --sol: #F0CD6E;  --sol-bg: rgba(232, 193, 90, .14);
+  }
+  * { box-sizing: border-box; }
+  /* Schriftgröße wächst mit der Breite des Rahmens mit */
+  html { font-size: clamp(15px, 0.9vw + 9px, 22px); }
+  html.eingebettet, html.eingebettet body { background: var(--bg-im-rahmen); }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  body { padding: clamp(16px, 4vw, 40px); }
+  main { max-width: var(--max-breite); margin: 0 auto; }
+
+  h1 { font-size: 1.5rem; line-height: 1.25; margin: 0 0 .4rem; font-weight: 700; letter-spacing: .005em; }
+  .anleitung { color: var(--muted); margin: 0 0 1.25rem; line-height: 1.5; }
+
+  /* ---------- Knöpfe ---------- */
+  button {
+    font: inherit;
+    font-size: 1rem;
+    padding: .6rem 1.1rem;
+    border-radius: 6px;
+    border: 1px solid var(--accent);
+    cursor: pointer;
+    transition: background-color .15s, color .15s, border-color .15s;
+  }
+  button[hidden] { display: none; }
+  .primaer   { background: var(--accent); color: #0D1F23; font-weight: 700; }
+  .primaer:hover { background: #74C8D3; border-color: #74C8D3; }
+  .sekundaer { background: transparent; color: var(--accent); }
+  .sekundaer:hover { background: rgba(91, 184, 196, .12); }
+  button:disabled { opacity: .35; cursor: default; }
+  .sekundaer:disabled:hover { background: transparent; }
+  button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+  .unsichtbar { visibility: hidden; }
+
+  /* ---------- Übersicht: eine Nummer pro Frage ---------- */
+  .uebersicht { display: flex; flex-wrap: wrap; gap: .55rem; margin: 0 0 1.5rem; padding: 0; list-style: none; }
+  .punkt {
+    width: 2.3rem; height: 2.3rem;
+    padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    border: 2px solid var(--field-line);
+    background: var(--field);
+    color: var(--muted);
+    font-size: .95rem; font-weight: 700; line-height: 1;
+  }
+  .punkt:hover { border-color: var(--accent); color: var(--ink); }
+  .punkt[data-status="richtig"] { background: var(--ok-bg);  border-color: var(--ok);  color: var(--ok); }
+  .punkt[data-status="falsch"]  { background: var(--bad-bg); border-color: var(--bad); color: var(--bad); }
+  .punkt[data-status="geloest"] { background: var(--sol-bg); border-color: var(--sol); color: var(--sol); border-style: dashed; }
+  /* Die gerade angezeigte Frage bekommt einen Ring */
+  .punkt[aria-current="step"] { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .punkt[aria-current="step"][data-status="offen"] { border-color: var(--accent); color: var(--ink); }
+  .punkt:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+  /* ---------- Fragen: alle übereinander, nur die aktuelle ist sichtbar ----------
+     So bleibt die Höhe beim Blättern gleich und nichts springt. */
+  .stapel { display: grid; }
+  .karte { grid-area: 1 / 1; min-width: 0; visibility: hidden; }
+  .karte.aktiv { visibility: visible; }
+
+  .kopf { color: var(--accent); font-weight: 700; font-size: .95rem; margin: 0 0 .5rem; letter-spacing: .01em; }
+  .frage-text { font-size: 1.125rem; line-height: 1.6; margin: 0 0 1.25rem; }
+  .frage-text strong { font-weight: 700; }
+
+  .eingabe-huelle { position: relative; max-width: 36rem; margin: 0 0 1rem; }
+  .eingabe {
+    font: inherit;
+    font-size: 1.125rem;
+    line-height: 1.4;
+    width: 100%;
+    color: var(--ink);
+    background: var(--field);
+    border: 0;
+    border-bottom: 2px solid var(--field-line);
+    border-radius: 4px 4px 0 0;
+    padding: .55rem 2.2em .55rem .75em;
+    transition: background-color .15s, border-color .15s, color .15s;
+  }
+  .eingabe::placeholder { color: var(--muted); opacity: 1; }
+  .eingabe:hover { border-bottom-color: var(--accent); }
+  .eingabe:focus { outline: none; border-bottom-color: var(--accent); }
+  .eingabe:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .eingabe.richtig { background: var(--ok-bg);  border-bottom-color: var(--ok);  color: var(--ok); }
+  .eingabe.falsch  { background: var(--bad-bg); border-bottom-color: var(--bad); color: var(--bad); }
+  .eingabe.geloest { background: var(--sol-bg); border-bottom-color: var(--sol); color: var(--sol); border-bottom-style: dashed; }
+  .eingabe:disabled { opacity: 1; cursor: default; -webkit-text-fill-color: currentColor; }
+  .zeichen { position: absolute; right: .7em; top: 50%; transform: translateY(-50%); line-height: 1; font-weight: 700; font-size: 1.125rem; pointer-events: none; }
+  .zeichen.richtig { color: var(--ok); }
+  .zeichen.falsch  { color: var(--bad); }
+
+  /* Knöpfe der Frage und Rückmeldung nebeneinander */
+  .pruefzeile { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.25rem; }
+  .knoepfe { display: flex; flex-wrap: wrap; gap: .6rem; }
+  .rueckmeldung { flex: 1 1 16rem; margin: 0; line-height: 1.5; min-height: 3em; display: flex; align-items: center; }
+  .rueckmeldung[data-art="richtig"] strong { color: var(--ok); }
+  .rueckmeldung[data-art="falsch"]  strong { color: var(--bad); }
+  .rueckmeldung[data-art="geloest"] strong { color: var(--sol); }
+  .rueckmeldung[data-art="hinweis"] { color: var(--muted); }
+
+  /* ---------- Blättern ---------- */
+  .blaettern {
+    display: flex; justify-content: space-between; align-items: center; gap: .6rem;
+    margin-top: 1.5rem; padding-top: 1.1rem;
+    border-top: 1px solid var(--line);
+  }
+
+  /* ---------- Auswertung ---------- */
+  .ergebniskarte h2 { font-size: 1.25rem; line-height: 1.3; margin: 0 0 .5rem; }
+  .ergebniskarte h2:focus { outline: none; }
+  .zusammenfassung { margin: 0 0 1.1rem; line-height: 1.5; }
+  .liste {
+    list-style: none; margin: 0 0 1.25rem; padding: 0;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: .6rem 1.5rem;
+  }
+  .liste li { display: flex; align-items: center; gap: .75rem; line-height: 1.35; }
+  .liste .punkt { width: 1.9rem; height: 1.9rem; font-size: .85rem; flex: none; }
+  .liste .leise { color: var(--muted); }
+
+  .extern { display: inline-block; margin: 0 0 1.5rem; color: var(--accent); font-weight: 700; text-underline-offset: 3px; }
+  .extern[hidden] { display: none; }
+  .extern:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 2px; }
+
+  /* Hinweis für die Erstellerin / den Ersteller, falls bei den Fragen etwas fehlt */
+  .autorhinweis { margin: 0 0 1.5rem; padding: .75rem 1rem; border: 1px dashed var(--sol); border-radius: 8px; color: var(--sol); font-size: .9rem; line-height: 1.5; }
+  .autorhinweis[hidden] { display: none; }
+  .autorhinweis ul { margin: .3rem 0 0; padding-left: 1.2rem; }
+
+  @media (prefers-reduced-motion: reduce) { .eingabe, button { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+
+  <!-- ====== HIER ANPASSEN: Überschrift und Arbeitsanweisung ====== -->
+  <h1>Unbeabsichtigte Schussabgabe vermeiden</h1>
+  <p class="anleitung">Beantworte jede Frage mit einem Begriff und prüfe deine Antwort. Mit „Weiter“ oder über die Nummern kommst du zu den anderen Fragen.</p>
+  <a class="extern" id="extern" href="#" target="_blank" rel="noopener" hidden>Übung in eigenem Fenster öffnen</a>
+  <div class="autorhinweis" id="autorhinweis" role="note" hidden></div>
+
+  <!--
+    ====== HIER ANPASSEN: Die Fragen ======
+    - Jede Frage beginnt mit "Frage:"  ("Frage 3:" mit Nummer ist auch erlaubt).
+      Die Fragestellung darf über mehrere Zeilen gehen.
+    - "Antwort:" = die Musterlösung. Sie wird bei „Lösung anzeigen" eingetragen.
+    - "Alternativen:" = weitere Antworten, die ebenfalls als richtig zählen.
+      Getrennt durch einen Schrägstrich /  (oder |).
+      Lange Listen dürfen über mehrere Zeilen gehen – ein Zeilenumbruch trennt ebenfalls.
+      Die Zeile "Alternativen:" kann auch ganz fehlen.
+    - Beim Vergleich wird ignoriert (einstellbar unten bei EINSTELLUNGEN):
+      Groß-/Kleinschreibung, Leerzeichen, Bindestriche, Satzzeichen, ß/ss.
+      „Abzugs-Disziplin" muss also nicht extra eingetragen werden.
+    - Zwischen zwei Fragen steht eine Leerzeile.
+    - In der Fragestellung:  Fett: <strong>Wort</strong>   Kursiv: <em>Wort</em>
+    - Beliebig viele Fragen möglich.
+  -->
+  <script type="text/plain" id="fragen">
+Frage 1: Der Abzugsfinger liegt immer entlang der Abzugseinrichtung, außer wenn tatsächlich geschossen werden soll. Nennen Sie die Regel, die dieses geforderte Verhalten beschreibt!
+Antwort: Abzugsdisziplin
+Alternativen: Abzugs-Disziplin / Abzugs Disziplin
+
+Frage 2: Mit einer gezogenen Schusswaffe versucht ein Polizist, die Fahrertür eines Fahrzeugs zu öffnen. Der Fahrer hielt von innen die Tür zu. Der Polizist versuchte, die Tür mit voller Kraft aufzureißen. Daraufhin kam es zur unbeabsichtigten Schussabgabe. Nennen Sie den möglichen Auslösemechanismus für diese Schussabgabe!
+Antwort: große Anstrengung anderer Muskelgruppen
+Alternativen: große anstrengung anderer muskelgruppen / große anstrengung anderer muskeln
+  große beanspruchung anderer muskelgruppen / große beanspruchung anderer muskeln
+  große belastung anderer muskelgruppen / große belastung anderer muskeln
+  starke anstrengung anderer muskelgruppen / starke anstrengung anderer muskeln
+  starke beanspruchung anderer muskelgruppen / starke beanspruchung anderer muskeln
+  starke belastung anderer muskelgruppen / starke belastung anderer muskeln
+  erhöhte anstrengung anderer muskelgruppen / erhöhte anstrengung anderer muskeln
+  erhöhte beanspruchung anderer muskelgruppen / erhöhte beanspruchung anderer muskeln
+  erhöhte belastung anderer muskelgruppen / erhöhte belastung anderer muskeln
+  intensive anstrengung anderer muskelgruppen / intensive anstrengung anderer muskeln
+  intensive beanspruchung anderer muskelgruppen / intensive beanspruchung anderer muskeln
+  intensive belastung anderer muskelgruppen / intensive belastung anderer muskeln
+  große anstrengung der muskulatur / große beanspruchung der muskulatur
+  große belastung der muskulatur / starke anstrengung der muskulatur
+  starke beanspruchung der muskulatur / starke belastung der muskulatur
+  erhöhte anstrengung der muskulatur / erhöhte beanspruchung der muskulatur
+  erhöhte belastung der muskulatur / intensive anstrengung der muskulatur
+  intensive beanspruchung der muskulatur / intensive belastung der muskulatur
+  anstrengung anderer muskelgruppen bei stress / beanspruchung anderer muskelgruppen bei stress
+  belastung anderer muskelgruppen bei stress / anstrengung anderer muskelgruppen unter stress
+  beanspruchung anderer muskelgruppen unter stress / belastung anderer muskelgruppen unter stress
+  hohe anstrengung anderer muskelgruppen / hohe beanspruchung anderer muskelgruppen
+  hohe belastung anderer muskelgruppen / hohe anstrengung anderer muskeln
+  hohe beanspruchung anderer muskeln / hohe belastung anderer muskeln
+  große anstrengung anderer muskelgruppen unter stresseinwirkung
+  große beanspruchung anderer muskelgruppen unter stresseinwirkung
+  große belastung anderer muskelgruppen unter stresseinwirkung
+  starke anstrengung anderer muskelgruppen unter stresseinwirkung
+  starke beanspruchung anderer muskelgruppen unter stresseinwirkung
+  starke belastung anderer muskelgruppen unter stresseinwirkung
+  erhöhte anstrengung anderer muskelgruppen unter stresseinwirkung
+  erhöhte beanspruchung anderer muskelgruppen unter stresseinwirkung
+  erhöhte belastung anderer muskelgruppen unter stresseinwirkung
+  intensive anstrengung anderer muskelgruppen unter stresseinwirkung
+  intensive beanspruchung anderer muskelgruppen unter stresseinwirkung
+  intensive belastung anderer muskelgruppen unter stresseinwirkung
+  große anstrengung anderer muskelgruppen bei stress
+  große beanspruchung anderer muskelgruppen bei stress
+  große belastung anderer muskelgruppen bei stress
+  starke anstrengung anderer muskelgruppen bei stress
+  starke beanspruchung anderer muskelgruppen bei stress
+  starke belastung anderer muskelgruppen bei stress
+  erhöhte anstrengung anderer muskelgruppen bei stress
+  erhöhte beanspruchung anderer muskelgruppen bei stress
+  erhöhte belastung anderer muskelgruppen bei stress
+  intensive anstrengung anderer muskelgruppen bei stress
+  intensive beanspruchung anderer muskelgruppen bei stress
+  intensive belastung anderer muskelgruppen bei stress / anstrengung anderer muskeln bei stress
+  beanspruchung anderer muskeln bei stress / belastung anderer muskeln bei stress
+  anstrengung anderer muskeln unter stress / beanspruchung anderer muskeln unter stress
+  belastung anderer muskeln unter stress / hohe anstrengung anderer muskelgruppen unter stress
+  hohe beanspruchung anderer muskelgruppen unter stress
+  hohe belastung anderer muskelgruppen unter stress
+  hohe anstrengung anderer muskelgruppen bei stress
+  hohe beanspruchung anderer muskelgruppen bei stress
+  hohe belastung anderer muskelgruppen bei stress / hohe anstrengung anderer muskeln bei stress
+  hohe beanspruchung anderer muskeln bei stress / hohe belastung anderer muskeln bei stress
+  hohe anstrengung anderer muskeln unter stress / hohe beanspruchung anderer muskeln unter stress
+  hohe belastung anderer muskeln unter stress / erhöhte beanspruchung der muskulatur bei stress
+  intensive beanspruchung der muskulatur bei stress / starke belastung der muskulatur bei stress
+  starke anstrengung der muskeln / starke anstrengung der muskeln unter stress
+
+Frage 3: Eine Polizistin bewegt sich mit ihrer gezogenen Schusswaffe und verfolgt einen Tatverdächtigen. Sie stolpert an einer Stufe und löst dabei unbeabsichtigt einen Schuss aus. Nennen Sie den möglichen Auslösemechanismus für diese unbeabsichtigte Schussabgabe!
+Antwort: Gleichgewichtsverlust
+Alternativen: Verlust des Gleichgewichts / Verlust vom Gleichgewicht / Verlust der Balance / Verlust von Balance
+  Verlust der Stabilität / Verlust von Stabilität / Balanceverlust / Stabilitätsverlust
+  Verlust des Gleichgewichtsgefühls / Verlust vom Gleichgewichtsgefühl / Gleichgewichtsstörung
+  Störung des Gleichgewichts / Störung vom Gleichgewicht / Instabilität / Gleichgewicht verloren
+  Balance verloren / Stabilität verloren / Gleichgewichtsstörungen / Probleme mit dem Gleichgewicht
+  Probleme mit Balance / Probleme mit Stabilität / Fehlende Stabilität / Ungleichgewicht
+
+Frage 4: Ein Polizist hat seine Schusswaffe gezogen. Er hört plötzlich einen lauten Knall neben sich und schießt danach unbeabsichtigt. Nennen Sie den möglichen Auslösemechanismus für diese unbeabsichtigte Schussabgabe!
+Antwort: Erschrecken
+Alternativen: Erschrockenheit / Schreck / Erschrecktsein / Schock / Erschrocken / Schrecken / Schreckmoment
+  Plötzliches Erschrecken / Plötzlicher Schreck / Angstschreck / Überraschung / Unruhe
+  Schreckensmoment / Überrumpelung / Schockmoment / Erschütterung / Verblüffung
+  Verängstigtes Erschrecken / Schreckhaftigkeit / Überraschtes Erschrecken / Entsetzen / Bestürzung
+  Überwältigung
+
+Frage 5: Nennen Sie das Phänomen, wodurch es zu einer unbeabsichtigten Schussabgabe kommen kann!
+Antwort: Muscle-Overflow
+Alternativen: Muscle Overflow
+
+Frage 6: Waffenmündung niemals ohne Grund auf einen Menschen richten, auch wenn die Waffe nicht geladen ist! Waffenmündung immer in eine sichere Richtung halten! Das heißt, dass die Waffenmündung nur auf das polizeiliche Ziel oder vorwärts abwärts gerichtet wird. Nennen Sie die Regel, die dieses geforderte Verhalten beschreibt!
+Antwort: Mündungsdisziplin
+Alternativen: Mündungs-Disziplin / Mündungs Disziplin
+  </script>
+
+  <nav aria-label="Fragen">
+    <ol class="uebersicht" id="uebersicht"></ol>
+  </nav>
+
+  <div class="stapel" id="stapel">
+    <!-- Die Fragen werden hier automatisch eingefügt -->
+    <section class="karte ergebniskarte" id="auswertung" aria-labelledby="auswertung-titel">
+      <h2 id="auswertung-titel" tabindex="-1">Auswertung</h2>
+      <p class="zusammenfassung" id="zusammenfassung" aria-live="polite"></p>
+      <ul class="liste" id="liste"></ul>
+      <div class="knoepfe">
+        <button type="button" class="sekundaer" id="neu">Von vorn beginnen</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="blaettern">
+    <button type="button" class="sekundaer" id="zurueck"><span aria-hidden="true">←</span> Zurück</button>
+    <button type="button" class="sekundaer" id="weiter"><span id="weiter-text">Weiter</span> <span aria-hidden="true">→</span></button>
+  </div>
+
+</main>
+
+<script>
+  // ====== HIER ANPASSEN: Einstellungen ======
+  const EINSTELLUNGEN = {
+    loesungAnzeigenErlaubt: true,     // false = Knopf "Lösung anzeigen" erscheint nie
+    loesungErstNachFehlversuch: true, // true  = Knopf "Lösung anzeigen" erst nach dem ersten falschen Versuch
+                                      // false = Knopf ist von Anfang an da
+
+    // Was beim Vergleich der Eingabe mit den Antworten NICHT zählt:
+    grossKleinIgnorieren: true,           // "abzugsdisziplin" = "Abzugsdisziplin"
+    leerzeichenBindestricheIgnorieren: true, // "Abzugs-Disziplin" = "Abzugs Disziplin" = "Abzugsdisziplin"
+    satzzeichenIgnorieren: true,          // "Abzugsdisziplin." = "Abzugsdisziplin"
+    ssGleichSz: true,                     // "grosse" = "große"
+
+    fragenReihenfolge: 'angegeben', // 'angegeben' = wie oben eingetragen, 'zufall' = bei jedem Laden neu gemischt
+    auswertungAnzeigen: true,       // true = nach der letzten Frage folgt eine Übersicht mit Ergebnis
+    platzhalter: 'Deine Antwort'    // grauer Text im leeren Eingabefeld
+  };
+
+  // ---------- Ab hier nichts mehr ändern nötig ----------
+  const E = EINSTELLUNGEN;
+  const uebersichtEl = document.getElementById('uebersicht');
+  const stapelEl = document.getElementById('stapel');
+  const auswertungEl = document.getElementById('auswertung');
+  const auswertungTitel = document.getElementById('auswertung-titel');
+  const zusammenfassungEl = document.getElementById('zusammenfassung');
+  const listeEl = document.getElementById('liste');
+  const btnZurueck = document.getElementById('zurueck');
+  const btnWeiter = document.getElementById('weiter');
+  const weiterText = document.getElementById('weiter-text');
+  const btnNeu = document.getElementById('neu');
+  // Mit Maus/Trackpad springt der Cursor beim Blättern gleich ins Eingabefeld (auf dem Handy nicht,
+  // sonst würde jedes Mal die Tastatur aufklappen)
+  const feinerZeiger = !!(window.matchMedia && window.matchMedia('(pointer: fine)').matches);
+
+  const STATUS_TEXT = { offen: 'noch nicht beantwortet', falsch: 'noch nicht richtig beantwortet', richtig: 'richtig', geloest: 'Lösung angezeigt' };
+  const autorHinweise = [];
+  const gesperrt = f => f.status === 'richtig' || f.status === 'geloest';
+
+  // Bringt Eingabe und Antworten in eine einheitliche Form, damit z. B. Bindestriche nicht zählen
+  function vergleichsform(s) {
+    let t = String(s).normalize('NFC').trim();
+    if (E.grossKleinIgnorieren) t = t.toLocaleLowerCase('de');
+    if (E.ssGleichSz) t = t.replace(/ß/g, 'ss').replace(/ẞ/g, 'SS');
+    if (E.satzzeichenIgnorieren) t = t.replace(/[.,;:!?¡¿"'`´„“”‚‘’«»‹›()\[\]{}*]/g, '');
+    if (E.leerzeichenBindestricheIgnorieren) t = t.replace(/[\s\-‐‑‒–—_­]+/g, '');
+    else t = t.replace(/\s+/g, ' ').trim();
+    return t;
+  }
+
+  const teilen = s => s.split(/[\/|]/).map(t => t.trim()).filter(Boolean);
+
+  function mischen(liste) {
+    for (let i = liste.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [liste[i], liste[j]] = [liste[j], liste[i]];
+    }
+    return liste;
+  }
+
+  // ---------- Fragen einlesen ----------
+  const fragen = [];
+  (function einlesen() {
+    let f = null, feld = null;
+    document.getElementById('fragen').textContent.split('\n').forEach(roh => {
+      const z = roh.trim();
+      if (!z) { feld = null; return; }
+      let m;
+      if ((m = z.match(/^Frage\s*\d*\s*:\s*(.*)$/i))) {
+        f = { text: m[1], haupt: [], alternativen: [] };
+        fragen.push(f);
+        feld = 'text';
+        return;
+      }
+      if (!f) { autorHinweise.push(`Diese Zeile steht vor der ersten Frage und wird nicht verwendet: „${z}“`); return; }
+      if ((m = z.match(/^Antwort(en)?\s*:\s*(.*)$/i)))      { f.haupt.push(...teilen(m[2])); feld = 'haupt'; return; }
+      if ((m = z.match(/^Alternativen?\s*:\s*(.*)$/i)))     { f.alternativen.push(...teilen(m[1])); feld = 'alternativen'; return; }
+      if (feld === 'text') f.text += ' ' + z;
+      else if (feld) f[feld].push(...teilen(z));
+      else autorHinweise.push(`Bei Frage ${fragen.length} steht nach einer Leerzeile eine Zeile, die nicht zugeordnet werden kann: „${z}“`);
+    });
+  })();
+
+  fragen.forEach((f, i) => {
+    f.text = f.text.trim();
+    // Doppelte Antworten (nach dem Vergleich gleich) nur einmal behalten; die erste ist die Musterlösung
+    f.antworten = [];
+    [...f.haupt, ...f.alternativen].forEach(a => {
+      const v = vergleichsform(a);
+      if (v && !f.antworten.some(x => vergleichsform(x) === v)) f.antworten.push(a);
+    });
+    if (!f.text) autorHinweise.push(`Bei Frage ${i + 1} fehlt die Fragestellung.`);
+    if (!f.haupt.length) autorHinweise.push(`Bei Frage ${i + 1} fehlt die Zeile „Antwort:“ mit der Musterlösung.`);
+  });
+  if (!fragen.length) autorHinweise.push('Es wurde keine Frage gefunden. Jede Frage muss mit „Frage:“ beginnen.');
+
+  // Fehlt etwas bei den Fragen, wird das oben auf der Seite angezeigt
+  if (autorHinweise.length) {
+    const box = document.getElementById('autorhinweis');
+    box.innerHTML = '<strong>Hinweis zur Erstellung:</strong><ul></ul>';
+    autorHinweise.forEach(t => {
+      const li = document.createElement('li');
+      li.textContent = t;
+      box.querySelector('ul').append(li);
+    });
+    box.hidden = false;
+    autorHinweise.forEach(t => console.warn('Kurzantwort-Fragen:', t));
+  }
+
+  if (E.fragenReihenfolge === 'zufall') mischen(fragen);
+
+  // ---------- Aufbau ----------
+  let aktiv = 0; // Nummer der angezeigten Frage (ab 0); fragen.length = Auswertung
+
+  function el(tag, klasse, text) {
+    const e = document.createElement(tag);
+    if (klasse) e.className = klasse;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  function aufbauen() {
+    const n = fragen.length;
+    uebersichtEl.textContent = '';
+    stapelEl.querySelectorAll('.frage').forEach(k => k.remove());
+
+    fragen.forEach((f, i) => {
+      f.status = 'offen';
+      f.fehlversuche = 0;
+
+      const karte = el('section', 'karte frage');
+      karte.setAttribute('aria-label', `Frage ${i + 1} von ${n}`);
+      const kopf = el('p', 'kopf', `Frage ${i + 1} von ${n}`);
+      const text = el('p', 'frage-text');
+      text.id = 'fragetext-' + i;
+      text.innerHTML = f.text;
+
+      const huelle = el('div', 'eingabe-huelle');
+      const input = el('input', 'eingabe');
+      input.type = 'text';
+      input.placeholder = E.platzhalter;
+      input.autocomplete = 'off';
+      input.spellcheck = false;
+      input.setAttribute('autocorrect', 'off');
+      input.setAttribute('enterkeyhint', 'done');
+      input.setAttribute('aria-labelledby', text.id);
+      const zeichen = el('span', 'zeichen');
+      zeichen.setAttribute('aria-hidden', 'true');
+      huelle.append(input, zeichen);
+
+      const zeile = el('div', 'pruefzeile');
+      const knoepfe = el('div', 'knoepfe');
+      const btnPruefen = el('button', 'primaer', 'Prüfen');
+      btnPruefen.type = 'button';
+      const btnLoesung = el('button', 'sekundaer', 'Lösung anzeigen');
+      btnLoesung.type = 'button';
+      knoepfe.append(btnPruefen, btnLoesung);
+      const meldungBox = el('p', 'rueckmeldung');
+      meldungBox.setAttribute('aria-live', 'polite');
+      const meldungText = el('span');
+      meldungBox.append(meldungText);
+      zeile.append(knoepfe, meldungBox);
+
+      karte.append(kopf, text, huelle, zeile);
+      stapelEl.insertBefore(karte, auswertungEl);
+
+      const li = el('li');
+      const punkt = el('button', 'punkt', String(i + 1));
+      punkt.type = 'button';
+      li.append(punkt);
+      uebersichtEl.append(li);
+
+      Object.assign(f, { karte, input, zeichen, btnPruefen, btnLoesung, meldungBox, meldungText, punkt });
+
+      input.addEventListener('input', () => {
+        if (f.status === 'falsch') f.status = 'offen';
+        meldung(f, '', '', '');
+        darstellen(f);
+        uebersichtAktualisieren();
+      });
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); pruefen(f, true); }
+      });
+      btnPruefen.addEventListener('click', e => pruefen(f, e.detail === 0));
+      btnLoesung.addEventListener('click', e => loesungZeigen(f, e.detail === 0));
+      punkt.addEventListener('click', e => zeigen(i, e.detail === 0));
+
+      darstellen(f);
+    });
+    auswertungAufbauen();
+  }
+
+  function meldung(f, art, fett, rest) {
+    f.meldungBox.dataset.art = art || '';
+    f.meldungText.textContent = '';
+    if (fett) f.meldungText.append(el('strong', null, fett));
+    if (rest) f.meldungText.append(document.createTextNode((fett ? ' ' : '') + rest));
+  }
+
+  function darstellen(f) {
+    const i = f.input;
+    i.classList.remove('richtig', 'falsch', 'geloest');
+    if (f.status !== 'offen') i.classList.add(f.status);
+    i.disabled = gesperrt(f);
+    i.setAttribute('aria-invalid', f.status === 'falsch' ? 'true' : 'false');
+    f.zeichen.className = 'zeichen ' + f.status;
+    f.zeichen.textContent = { richtig: '✓', falsch: '✗' }[f.status] || '';
+    f.btnPruefen.hidden = gesperrt(f);
+    f.btnLoesung.hidden = gesperrt(f) || !E.loesungAnzeigenErlaubt
+      || (E.loesungErstNachFehlversuch && f.fehlversuche === 0);
+  }
+
+  function uebersichtAktualisieren() {
+    fragen.forEach((f, i) => {
+      f.punkt.dataset.status = f.status;
+      f.punkt.setAttribute('aria-label', `Frage ${i + 1}: ${STATUS_TEXT[f.status]}`);
+      if (i === aktiv) f.punkt.setAttribute('aria-current', 'step');
+      else f.punkt.removeAttribute('aria-current');
+    });
+  }
+
+  function knoepfeAktualisieren() {
+    const n = fragen.length;
+    const aufAuswertung = aktiv >= n;
+    btnZurueck.disabled = aktiv === 0;
+    btnWeiter.classList.toggle('unsichtbar', aufAuswertung);
+    if (aufAuswertung) return;
+    const letzte = aktiv === n - 1;
+    weiterText.textContent = letzte && E.auswertungAnzeigen ? 'Zur Auswertung' : 'Weiter';
+    btnWeiter.disabled = letzte && !E.auswertungAnzeigen;
+    // Ist die aktuelle Frage erledigt, wird „Weiter“ zum Hauptknopf
+    const fertig = gesperrt(fragen[aktiv]);
+    btnWeiter.classList.toggle('primaer', fertig);
+    btnWeiter.classList.toggle('sekundaer', !fertig);
+  }
+
+  function pruefen(f, perTastatur) {
+    if (gesperrt(f)) return;
+    const eingabe = vergleichsform(f.input.value);
+    if (!eingabe) {
+      meldung(f, 'hinweis', '', 'Bitte gib zuerst eine Antwort ein.');
+      if (perTastatur) f.input.focus();
+      return;
+    }
+    if (f.antworten.some(a => vergleichsform(a) === eingabe)) {
+      f.status = 'richtig';
+      // Wurde eine Alternative eingegeben, zusätzlich die Musterlösung nennen
+      if (vergleichsform(f.antworten[0]) === eingabe) meldung(f, 'richtig', 'Richtig!', '');
+      else meldung(f, 'richtig', 'Richtig!', `Musterlösung: „${f.antworten[0]}“`);
+    } else {
+      f.status = 'falsch';
+      f.fehlversuche++;
+      const zaehler = f.fehlversuche > 1 ? ` (${f.fehlversuche}. Versuch)` : '';
+      meldung(f, 'falsch', `Leider nicht richtig${zaehler}.`, E.loesungAnzeigenErlaubt
+        ? 'Ändere deine Antwort und prüfe erneut – oder lass dir die Lösung anzeigen.'
+        : 'Ändere deine Antwort und prüfe erneut.');
+    }
+    darstellen(f);
+    uebersichtAktualisieren();
+    knoepfeAktualisieren();
+    if (perTastatur) {
+      if (!gesperrt(f)) f.input.focus();
+      else if (!btnWeiter.disabled) btnWeiter.focus();
+    }
+  }
+
+  function loesungZeigen(f, perTastatur) {
+    if (gesperrt(f) || !f.antworten.length) return;
+    f.input.value = f.antworten[0];
+    f.status = 'geloest';
+    meldung(f, 'geloest', 'Lösung eingetragen.', '');
+    darstellen(f);
+    uebersichtAktualisieren();
+    knoepfeAktualisieren();
+    if (perTastatur && !btnWeiter.disabled) btnWeiter.focus();
+  }
+
+  function auswertungAufbauen() {
+    const n = fragen.length;
+    listeEl.textContent = '';
+    fragen.forEach((f, i) => {
+      const li = el('li');
+      const punkt = el('button', 'punkt', String(i + 1));
+      punkt.type = 'button';
+      punkt.dataset.status = f.status;
+      punkt.setAttribute('aria-label', `Zu Frage ${i + 1}`);
+      punkt.addEventListener('click', e => zeigen(i, e.detail === 0));
+      const eintrag = el('span');
+      if (f.status === 'richtig') eintrag.append(el('strong', null, f.antworten[0]));
+      else if (f.status === 'geloest') eintrag.append(el('strong', null, f.antworten[0]), el('span', 'leise', ' – Lösung angezeigt'));
+      else eintrag.append(el('span', 'leise', STATUS_TEXT[f.status]));
+      li.append(punkt, eintrag);
+      listeEl.append(li);
+    });
+    const richtig = fragen.filter(f => f.status === 'richtig').length;
+    const offen = fragen.filter(f => !gesperrt(f)).length;
+    let satz;
+    if (n && richtig === n) satz = `Alle ${n} Fragen richtig beantwortet. Sehr gut!`;
+    else if (offen === 0) satz = `${richtig} von ${n} Fragen selbst gelöst.`;
+    else satz = `${richtig} von ${n} Fragen selbst gelöst. ${offen === 1 ? 'Eine Frage ist' : offen + ' Fragen sind'} noch offen – wähle die Nummer, um weiterzumachen.`;
+    zusammenfassungEl.textContent = satz;
+  }
+
+  function zeigen(i, perTastatur, ohneFokus) {
+    const n = fragen.length;
+    aktiv = Math.max(0, Math.min(i, E.auswertungAnzeigen ? n : n - 1));
+    fragen.forEach((f, j) => f.karte.classList.toggle('aktiv', j === aktiv));
+    auswertungEl.classList.toggle('aktiv', aktiv >= n);
+    if (aktiv >= n) auswertungAufbauen();
+    uebersichtAktualisieren();
+    knoepfeAktualisieren();
+    if (ohneFokus) return;
+    if (aktiv >= n) {
+      if (perTastatur) auswertungTitel.focus();
+    } else if (perTastatur || feinerZeiger) {
+      const f = fragen[aktiv];
+      if (!gesperrt(f)) f.input.focus({ preventScroll: true });
+      else if (perTastatur && !btnWeiter.disabled) btnWeiter.focus();
+    }
+  }
+
+  btnZurueck.addEventListener('click', e => zeigen(aktiv - 1, e.detail === 0));
+  btnWeiter.addEventListener('click', e => zeigen(aktiv + 1, e.detail === 0));
+  btnNeu.addEventListener('click', e => {
+    if (E.fragenReihenfolge === 'zufall') mischen(fragen);
+    aufbauen();
+    zeigen(0, e.detail === 0);
+  });
+
+  // Auf dem Handy innerhalb von Genially: Link zum Öffnen in eigenem Fenster anzeigen
+  (function () {
+    const eingebettet = window.self !== window.top;
+    const kleinerBildschirm = Math.min(screen.width, screen.height) < 600;
+    if (eingebettet && kleinerBildschirm) {
+      const link = document.getElementById('extern');
+      link.href = location.href;
+      link.hidden = false;
+    }
+  })();
+
+  aufbauen();
+  zeigen(0, false, true);
+</script>
+<!-- =====================================================================
+     EINPASSEN: Die Übung füllt ihren Rahmen (z. B. in Genially) möglichst
+     ohne Scrollen. Die Schrift – und damit alles, was in rem angegeben ist –
+     wird so groß gewählt, wie es die Höhe UND die Breite des Rahmens erlauben.
+     Passt die Übung selbst bei kleinster Schrift nicht (z. B. Handy),
+     wird wie bisher gescrollt.
+     Einbau: diesen ganzen Block ganz unten einfügen, direkt vor dem schließenden body-Tag.
+     ===================================================================== -->
+<style>
+  /* Im eingepassten Zustand etwas weniger Rand, damit mehr Platz für die Übung bleibt */
+  html.einpassen body { padding: clamp(10px, 3.5vh, 36px) clamp(14px, 3.5vw, 40px); }
+</style>
+<script>
+  // ====== HIER ANPASSEN: Einpassen in den Rahmen ======
+  const EINPASSEN = {
+    aktiv: true,     // false = wie früher: Schrift richtet sich nur nach der Breite, Höhe egal
+    minSchrift: 13,  // px – kleiner wird die Schrift nie. Passt es dann noch nicht, wird gescrollt.
+    minSchriftImRahmen: 11, // px – dasselbe, wenn die Übung eingebettet ist (Genially vergrößert
+                            //      die ganze Seite beim Anzeigen ohnehin auf Bildschirmgröße)
+    maxSchrift: 30,  // px – größer wird die Schrift nie (bei sehr großen Rahmen)
+    seitlich: true   // (bei dieser Übung ohne Wirkung)
+  };
+
+  // ---------- Ab hier nichts mehr ändern nötig ----------
+  (function () {
+    if (!EINPASSEN.aktiv) return;
+    const html = document.documentElement;
+    const main = document.querySelector('main');
+    if (!main) return;
+    html.classList.add('einpassen');
+
+    // Welche Anordnungen ausprobiert werden (Klassen an <main>). Eine Übung kann eigene
+    // Varianten vorgeben (window.einpassenVarianten) und eine Zusatzprüfung (window.einpassenPruefen).
+    let varianten = window.einpassenVarianten || [[], ['seitlich']];
+    if (!EINPASSEN.seitlich || !main.querySelector(':scope > .wortauswahl')) {
+      varianten = varianten.filter(v => !v.includes('seitlich'));
+    }
+    if (varianten.length === 0) varianten = [[]];
+    const alleKlassen = [...new Set(varianten.flat())];
+    // Platzhalter für die längste Rückmeldung nach dem Prüfen – damit später nichts überläuft
+    const PLATZHALTER = 'Leider nicht richtig (3. Versuch). Ändere deine Antwort und prüfe erneut – oder lass dir die Lösung anzeigen.';
+
+    let laeuft = false, nachholen = false, geplant = false;
+
+    // Passt alles in den Rahmen? Beim Suchen mit etwas Reserve, damit später nichts knapp überläuft.
+    const unterkante = () => main.getBoundingClientRect().bottom + window.scrollY
+      + parseFloat(getComputedStyle(document.body).paddingBottom);
+    const passt = (reserve = 6) => unterkante() <= window.innerHeight - reserve
+      && html.scrollWidth <= window.innerWidth + 1;
+    const ziehtGerade = () => html.classList.contains('ziehen') || document.body.classList.contains('zieht');
+
+    function setzen(px, v) {
+      html.style.fontSize = px + 'px';
+      alleKlassen.forEach(k => main.classList.toggle(k, v.includes(k)));
+    }
+
+    function einpassen() {
+      if (ziehtGerade()) { nachholen = true; return; }
+      laeuft = true;
+      const breite = window.innerWidth;
+      const eingebettet = window.self !== window.top;
+      const normal = Math.min(22, Math.max(15, 0.009 * breite + 9)); // bisherige Größe nach Breite
+      const minimum = eingebettet ? EINPASSEN.minSchriftImRahmen : EINPASSEN.minSchrift;
+      const unten = breite < 600 ? normal : Math.min(minimum, normal);
+      const oben = Math.max(unten, Math.min(EINPASSEN.maxSchrift, Math.max(normal, breite / 40)));
+
+      // Spätere Inhalte schon mit einplanen: Rückmeldungen und alle Knöpfe
+      const proben = [];
+      document.querySelectorAll('#ergebnis, .rueckmeldung').forEach(feld => {
+        if (feld.textContent.trim()) return;
+        const probe = feld.cloneNode(false);
+        probe.removeAttribute('id');
+        probe.removeAttribute('aria-live');
+        probe.setAttribute('aria-hidden', 'true');
+        probe.textContent = PLATZHALTER;
+        feld.style.display = 'none';
+        feld.after(probe);
+        proben.push([feld, probe]);
+      });
+      const versteckt = [...document.querySelectorAll('.knoepfe [hidden]')];
+      versteckt.forEach(b => { b.hidden = false; });
+      html.classList.add('eingepasst');
+      const x = window.scrollX, y = window.scrollY;
+
+      let beste = null;
+      varianten.forEach(v => {
+        setzen(unten, v);
+        if (!passt()) return;
+        let lo = unten, hi = oben;
+        setzen(hi, v);
+        if (passt()) lo = hi;
+        else {
+          while (hi - lo > 0.2) {
+            const mitte = (lo + hi) / 2;
+            setzen(mitte, v);
+            if (passt()) lo = mitte; else hi = mitte;
+          }
+        }
+        setzen(lo, v);
+        // Zusatzprüfung der Übung. Schlägt sie fehl,
+        // die größte kleinere Schrift suchen, bei der beides erfüllt ist.
+        const pruefung = window.einpassenPruefen;
+        if (typeof pruefung === 'function' && !pruefung()) {
+          const beides = () => passt() && pruefung();
+          setzen(unten, v);
+          if (!beides()) return;
+          let gut = unten, schlecht = lo;
+          while (schlecht - gut > 0.2) {
+            const mitte = (gut + schlecht) / 2;
+            setzen(mitte, v);
+            if (beides()) gut = mitte; else schlecht = mitte;
+          }
+          lo = gut;
+        }
+        // Eine spätere Anordnung wird nur genommen, wenn sie deutlich größere Schrift erlaubt
+        if (!beste || lo > beste.px * 1.08) beste = { px: lo, v };
+      });
+
+      proben.forEach(([feld, probe]) => { probe.remove(); feld.style.display = ''; });
+      versteckt.forEach(b => { b.hidden = true; });
+      if (beste) {
+        setzen(beste.px, beste.v);
+      } else {
+        // Passt nirgends: es wird gescrollt. Im eingebetteten Rahmen mit kleiner Schrift
+        // (möglichst wenig scrollen), sonst (z. B. Handy) in normaler Größe.
+        html.classList.remove('eingepasst');
+        setzen(normal, []);
+        html.style.fontSize = (eingebettet && breite >= 600) ? unten + 'px' : '';
+      }
+      window.scrollTo(x, y);
+      laeuft = false;
+    }
+
+    function planen() {
+      if (geplant) return;
+      geplant = true;
+      requestAnimationFrame(() => { geplant = false; einpassen(); });
+    }
+
+    window.addEventListener('resize', planen);
+    window.addEventListener('load', planen);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(planen);
+    // Wird der Inhalt später doch größer (z. B. eine lange Rückmeldung), neu einpassen
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(() => {
+        if (!laeuft && html.classList.contains('eingepasst') && !passt(0)) planen();
+      }).observe(main);
+    }
+    // Während gezogen wird, nichts verschieben – erst danach
+    document.addEventListener('pointerup', () => { if (nachholen) { nachholen = false; setTimeout(planen, 0); } });
+    document.addEventListener('pointercancel', () => { if (nachholen) { nachholen = false; setTimeout(planen, 0); } });
+    einpassen();
+  })();
+</script>
+</body>
+</html>
