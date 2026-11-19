@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zuordnen mit Kartenstapel (Drag &amp; Drop)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<script>if (window.self !== window.top) document.documentElement.classList.add('eingebettet');</script>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #161B22;              /* Hintergrund, wenn die Übung direkt im Browser geöffnet wird */
+    --bg-im-rahmen: transparent; /* Hintergrund, wenn die Übung in Genially eingebettet ist */
+    --max-breite: none;         /* none = volle Breite des Rahmens; z. B. 60rem = schmaler */
+    --karten-breite: 34rem;     /* höchstens so breit ist die Karte auf dem Stapel */
+    --ink: #E6EBF0;
+    --muted: #9AA7B3;
+    --line: #2E3843;
+    --field: #212933;
+    --field-line: #3D4957;
+    --chip: #2B3541;            /* Karten */
+    --accent: #5BB8C4;
+    --accent-bg: rgba(91, 184, 196, .18);
+    --ok: #7EDDA3;   --ok-bg: rgba(92, 201, 138, .14);
+    --bad: #FF8F84;  --bad-bg: rgba(240, 122, 110, .15);
+    --sol: #F0CD6E;  --sol-bg: rgba(232, 193, 90, .14);
+  }
+  * { box-sizing: border-box; }
+  /* Schriftgröße wächst mit der Breite des Rahmens mit */
+  html { font-size: clamp(15px, 0.9vw + 9px, 22px); }
+  html.eingebettet, html.eingebettet body { background: var(--bg-im-rahmen); }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  body { padding: clamp(16px, 4vw, 40px); }
+  main { max-width: var(--max-breite); margin: 0 auto; }
+
+  h1 { font-size: 1.5rem; line-height: 1.25; margin: 0 0 .4rem; font-weight: 700; letter-spacing: .005em; }
+  .anleitung { color: var(--muted); margin: 0 0 1.5rem; line-height: 1.5; }
+
+  /* ---------- Kartenstapel ---------- */
+  .stapelbereich {
+    margin: 0 0 1.5rem;
+    padding: .8rem 1rem 1.25rem;
+    background: var(--field);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  .stapelbereich.unten { margin: 1.5rem 0 0; }
+  .stapelbereich.fixiert { position: sticky; z-index: 5; }
+  .stapelbereich.fixiert.oben  { top: 0;    box-shadow: 0 12px 24px -10px rgba(0, 0, 0, .6); }
+  .stapelbereich.fixiert.unten { bottom: 0; box-shadow: 0 -12px 24px -10px rgba(0, 0, 0, .6); }
+  .stapel-spalte { width: min(100%, var(--karten-breite)); margin: 0 auto; }
+  .stapel-kopf { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .2rem 1rem; margin: 0 0 .6rem; }
+  .stapel-kopf h2 { font-size: .9rem; font-weight: 700; color: var(--muted); margin: 0; }
+  .stapel-info { margin: 0; font-size: .9rem; line-height: 1.4; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* Alle Karten liegen in derselben Zelle übereinander. Unsichtbare Kopien aller Karten sorgen dafür,
+     dass der Stapel immer so hoch ist wie die längste Karte – so springt beim Weiterblättern nichts. */
+  .stapel { position: relative; isolation: isolate; display: grid; grid-template-columns: minmax(0, 1fr); margin-bottom: .7rem; }
+  .stapel > * { grid-area: 1 / 1; }
+  .stapel .mass { visibility: hidden; pointer-events: none; display: flex; }
+  .stapel-oben { list-style: none; margin: 0; padding: 0; display: flex; }
+  .stapel-oben > .eintrag { flex: 1 1 auto; }
+  /* Karten darunter, die etwas hervorschauen */
+  .stapel::before, .stapel::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    border: 1px solid var(--field-line);
+    border-radius: 8px;
+    pointer-events: none;
+  }
+  .stapel::before { left: .45rem; right: .45rem; bottom: -.35rem; background: #27303B; z-index: -1; }
+  .stapel::after  { left: .9rem;  right: .9rem;  bottom: -.7rem;  background: #242C36; z-index: -2; }
+  .stapel[data-rest="0"]::before, .stapel[data-rest="1"]::before,
+  .stapel[data-rest="0"]::after,  .stapel[data-rest="1"]::after,
+  .stapel[data-rest="2"]::after { display: none; }
+  .stapel-leer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: .8rem 1rem;
+    text-align: center;
+    color: var(--muted);
+    font-size: .95rem;
+    border: 1px dashed var(--field-line);
+    border-radius: 8px;
+  }
+  .stapel:not(.leer) .stapel-leer { visibility: hidden; }
+  /* Schild an der Unterkante der Karte, wenn sie falsch zugeordnet wurde */
+  .stapel-meldung {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    z-index: 2;
+    width: max-content;
+    max-width: calc(100% - 1.5rem);
+    margin: 0;
+    padding: .2rem .75rem;
+    transform: translate(-50%, 50%);
+    font-size: .85rem;
+    font-weight: 700;
+    line-height: 1.35;
+    text-align: center;
+    color: #2E0F0C;
+    background: var(--bad);
+    border-radius: 999px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .35);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .15s;
+  }
+  .stapel.fehler .stapel-meldung { opacity: 1; }
+
+  /* ---------- Felder, in die zugeordnet wird ---------- */
+  .koerbe {
+    display: grid;
+    /* nebeneinander, solange jedes Feld mindestens 14rem breit sein kann – sonst untereinander */
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+    gap: 1rem;
+  }
+  .korb {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 6rem;
+    padding: .7rem .75rem .75rem;
+    background: var(--field);
+    border: 1px dashed var(--field-line);
+    border-radius: 8px;
+    outline: 2px solid transparent;
+    outline-offset: 1px;
+    transition: background-color .15s, border-color .15s, outline-color .15s;
+  }
+  .korb-titel { margin: 0 0 .6rem; font-size: 1.05rem; line-height: 1.3; font-weight: 700; }
+  .korb-kopf {
+    font: inherit;
+    color: inherit;
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    text-align: left;
+    background: none;
+    border: 0;
+    border-radius: 4px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .korb-kopf:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .korb-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .4rem; }
+  .korb-liste .karte { flex: 1 1 auto; }
+  .korb-leer { margin: auto 0; padding: .4rem .25rem; text-align: center; color: var(--muted); font-size: .9rem; line-height: 1.4; }
+  .korb.leer .korb-liste, .korb:not(.leer) .korb-leer { display: none; }
+
+  /* Liegt eine Karte bereit, laden die Felder zum Anklicken ein */
+  html.stapel-aktiv .korb { cursor: pointer; }
+  html.stapel-aktiv .korb:hover, html.auswahl-aktiv .korb { border-color: var(--accent); }
+  /* Feld, über dem gerade die gezogene Karte schwebt */
+  .korb.ziel { background: var(--accent-bg); border: 1px solid var(--accent); outline-color: var(--accent); }
+  /* Falsches Feld gewählt */
+  .korb.daneben, html.stapel-aktiv .korb.daneben:hover { background: var(--bad-bg); border: 1px solid var(--bad); outline-color: transparent; }
+
+  .eintrag { display: flex; min-width: 0; max-width: 100%; }
+
+  /* ---------- Karten ---------- */
+  .karte {
+    font: inherit;
+    font-size: 1rem;
+    line-height: 1.35;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+    padding: .4rem .7rem .4rem .3rem;
+    text-align: left;
+    background: var(--chip);
+    border: 1px solid var(--field-line);
+    border-radius: 6px;
+    cursor: grab;
+    touch-action: manipulation;  /* auf dem Handy: über die Karte kann weiter gescrollt werden */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color .15s, border-color .15s, color .15s, opacity .15s;
+  }
+  .karte:not(.gesperrt):hover { border-color: var(--accent); }
+  .karte:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* Die oberste Karte auf dem Stapel: groß wie eine Karteikarte */
+  .stapel .karte {
+    width: 100%;
+    min-height: 4.4rem;
+    padding: .9rem 1rem .9rem .45rem;
+    font-size: 1.15rem;
+    line-height: 1.4;
+    background: #303B48;
+    border-radius: 8px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, .35);
+  }
+  /* lange Wörter werden in der schmalen Spalte notfalls getrennt */
+  .stapel .karten-text { text-align: center; -webkit-hyphens: auto; hyphens: auto; overflow-wrap: anywhere; }
+
+  /* Griff (Punkte links) – auf dem Handy wird hier gezogen */
+  .griff {
+    flex: none;
+    min-width: 1.3em;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 .25rem;
+    margin: -.4rem 0;
+    color: var(--muted);
+    touch-action: none;
+  }
+  .griff svg { width: .5em; height: .9em; display: block; }
+  .karten-text { flex: 1 1 auto; min-width: 0; overflow-wrap: break-word; }
+  /* Platz für ✓ / ✗ ist immer reserviert, damit die Karten beim Prüfen nicht springen */
+  .zeichen { flex: none; width: 1em; text-align: center; font-weight: 700; }
+  @media (pointer: coarse) { .griff { padding: 0 .5rem; } }
+  /* Passt die Übung ohne Scrollen in den Rahmen, kann auf dem Touchscreen die ganze Karte gezogen werden */
+  html.eingepasst .karte:not(.gesperrt) { touch-action: none; }
+
+  .karte.ausgewaehlt { background: var(--accent-bg); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+
+  .karte.richtig { background: var(--ok-bg);  border: 1px solid var(--ok);  color: var(--ok); }
+  .karte.falsch  { background: var(--bad-bg); border: 1px solid var(--bad); color: var(--bad); }
+  .karte.geloest { background: var(--sol-bg); border: 1px dashed var(--sol); color: var(--sol); }
+  .stapel .karte.falsch { background: #4A3136; }  /* auf dem Stapel nicht durchsichtig */
+  .karte.richtig .griff, .karte.falsch .griff, .karte.geloest .griff { color: inherit; }
+  .karte.gesperrt { cursor: default; }
+  .karte.gesperrt .griff svg, .karte.falsch .griff svg { visibility: hidden; }
+  .karte.falsch { cursor: default; }
+
+  .karte.gelandet { animation: landen .18s ease-out; }
+  @keyframes landen { from { transform: scale(.94); } to { transform: scale(1); } }
+  .karte.nachruecken { animation: nachruecken .22s ease-out; }
+  @keyframes nachruecken { from { transform: translateY(.45rem); opacity: .3; } to { transform: none; opacity: 1; } }
+  .karte.wackeln { animation: wackeln .4s ease-in-out; }
+  @keyframes wackeln {
+    0%, 100% { transform: none; }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(3px); }
+  }
+
+  /* Herkunft der gerade gezogenen Karte */
+  .karte.quelle { opacity: .35; }
+
+  /* Karte, die beim Ziehen am Zeiger hängt */
+  .geist {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 1000;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    padding: .4rem .7rem .4rem .3rem;
+    line-height: 1.35;
+    color: var(--ink);
+    background: #33404E;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .5);
+    will-change: transform;
+  }
+  html.ziehen, html.ziehen * { cursor: grabbing !important; user-select: none !important; -webkit-user-select: none !important; }
+
+  .extern { display: inline-block; margin: 0 0 1.5rem; color: var(--accent); font-weight: 700; text-underline-offset: 3px; }
+  .extern[hidden] { display: none; }
+  .extern:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 2px; }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+  .auswertung { margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+  /* Solange es nichts zu melden gibt, bleibt der Bereich unsichtbar (der Platz ist schon eingeplant) */
+  .auswertung.leer { visibility: hidden; }
+  .ergebnis { margin: 0 0 1rem; font-size: 1.05rem; line-height: 1.5; }
+  .ergebnis:empty { display: none; }
+  .knoepfe { display: flex; flex-wrap: wrap; gap: .6rem; }
+
+  .knoepfe button {
+    font: inherit;
+    font-size: 1rem;
+    padding: .6rem 1.1rem;
+    border-radius: 6px;
+    border: 1px solid var(--accent);
+    cursor: pointer;
+    transition: background-color .15s, color .15s;
+  }
+  .knoepfe button[hidden] { display: none; }
+  .primaer   { background: var(--accent); color: #0D1F23; font-weight: 700; }
+  .primaer:hover { background: #74C8D3; border-color: #74C8D3; }
+  .sekundaer { background: transparent; color: var(--accent); }
+  .sekundaer:hover { background: rgba(91, 184, 196, .12); }
+  .knoepfe button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+  /* Breiter Rahmen (beim Einpassen, siehe Baustein am Ende): Stapel links, Felder rechts daneben */
+  main.nebeneinander {
+    display: grid;
+    grid-template-columns: minmax(12rem, 19rem) minmax(0, 1fr);
+    column-gap: 1.25rem;
+    grid-auto-flow: row dense;
+    align-items: start;
+  }
+  main.nebeneinander > * { grid-column: 1 / -1; }
+  main.nebeneinander > .stapelbereich { grid-column: 1; margin: 0; }
+  main.nebeneinander > .koerbe { grid-column: 2; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .korb, .karte, .knoepfe button, .stapel-meldung { transition: none; }
+    .karte.gelandet, .karte.nachruecken, .karte.wackeln { animation: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+  <!-- ====== HIER ANPASSEN: Überschrift und Arbeitsanweisung ====== -->
+  <h1>Vollmantelgeschoss oder Deformationsgeschoss?</h1>
+  <p class="anleitung">Ordne die oberste Karte dem passenden Geschoss zu: Ziehe sie in das richtige Feld oder klicke das Feld an. Ist die Zuordnung falsch, kommt die Karte zurück unter den Stapel.</p>
+  <a class="extern" id="extern" href="#" target="_blank" rel="noopener" hidden>Übung in eigenem Fenster öffnen</a>
+
+  <!--
+    ====== HIER ANPASSEN: Felder und Karten ======
+    - Eine Zeile, die mit "#" beginnt, ist die Überschrift eines Feldes.
+    - Darunter stehen die Aussagen, die in dieses Feld gehören – eine pro Zeile.
+      Jede Aussage wird eine Karte auf dem Stapel.
+    - Die Felder erscheinen in dieser Reihenfolge von links nach rechts.
+      Zwei Felder sind üblich, drei oder mehr gehen auch.
+    - Beim Öffnen wird der Stapel gemischt.
+    - Fett:   <strong>Wort</strong>     Kursiv:   <em>Wort</em>
+    - Kein Zeilenumbruch zwischen Zahl und Einheit:   1&nbsp;mm
+    - Beliebig viele Karten möglich.
+  -->
+  <script type="text/plain" id="aufgabe">
+# Vollmantelgeschoss
+Kaum Verformung des Geschosses bei Eindringen in einen menschlichen Körper
+Schlanker Schusskanal
+Kaum direkte Mann-Stoppwirkung
+Hohe Gefahr durch Abpraller
+Gefahr von Durchschüssen (auch durch mehrere Personen)
+Bei Beschuss eines Reifens entsteht ein sehr kleines Loch, Luft entweicht langsam
+Sechs 1&nbsp;mm dicke Stahlplatten werden durchschlagen
+
+# Deformationsgeschoss
+Verformung des Geschosses bei Eindringen in einen menschlichen Körper
+Eindringtiefe in den Körper: maximal 24&nbsp;cm (geringere Gefahr von Durchschüssen)
+Weiter Schusskanal
+Größere Mann-Stoppwirkung wegen höherer Energieabgabe des Geschosses im Ziel
+Fünf 1&nbsp;mm dicke Stahlplatten werden durchschlagen (Mindestanforderung waren vier)
+Bei Beschuss eines Reifens entsteht ein mehrere Millimeter großes Loch und die Luft entweicht schnell
+Standardmunition der Polizei RLP
+  </script>
+
+  <section class="stapelbereich" id="stapelbereich" aria-labelledby="stapel-titel">
+    <div class="stapel-spalte">
+      <div class="stapel-kopf">
+        <h2 id="stapel-titel">Kartenstapel</h2>
+        <p class="stapel-info" id="stapel-info"></p>
+      </div>
+      <div class="stapel" id="stapel">
+        <ul class="stapel-oben" id="stapel-oben" aria-label="Oberste Karte"></ul>
+        <p class="stapel-leer">Alle Karten sind zugeordnet.</p>
+        <p class="stapel-meldung" aria-hidden="true">Falsch – zurück unter den Stapel</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="koerbe" id="koerbe"></div>
+
+  <div class="auswertung leer" id="auswertung">
+    <p class="ergebnis" id="ergebnis" aria-live="polite"></p>
+    <div class="knoepfe">
+      <button type="button" class="sekundaer" id="loesungen" hidden>Lösung anzeigen</button>
+      <button type="button" class="sekundaer" id="neu" hidden>Von vorn beginnen</button>
+    </div>
+  </div>
+  <p class="sr-only" id="karten-hinweis"></p>
+  <p class="sr-only" id="ansage" aria-live="polite"></p>
+
+</main>
+
+<script>
+  // ====== HIER ANPASSEN: Einstellungen ======
+  const EINSTELLUNGEN = {
+    loesungenAnzeigenErlaubt: true, // false = Knopf "Lösung anzeigen" erscheint nie
+
+    // Wo liegt der Kartenstapel?  'oben' = über den Feldern,  'unten' = unter den Feldern
+    // (bei breiten Rahmen steht er ohnehin links neben den Feldern)
+    stapelPosition: 'oben',
+    // true = der Stapel bleibt beim Scrollen am Rand sichtbar (praktisch auf dem Handy)
+    stapelFixiert: true,
+    // So viele Sekunden bleibt eine falsch zugeordnete Karte rot stehen, bevor sie unter den Stapel kommt
+    wartezeitBeiFehler: 1.2
+  };
+
+  // ---------- Ab hier nichts mehr ändern nötig ----------
+  const wurzel = document.documentElement;
+  const bereichEl = document.getElementById('stapelbereich');
+  const stapelEl = document.getElementById('stapel');
+  const obenEl = document.getElementById('stapel-oben');
+  const infoEl = document.getElementById('stapel-info');
+  const koerbeEl = document.getElementById('koerbe');
+  const auswertungEl = document.getElementById('auswertung');
+  const ergebnisEl = document.getElementById('ergebnis');
+  const ansageEl = document.getElementById('ansage');
+  const btnLoesungen = document.getElementById('loesungen');
+  const btnNeu = document.getElementById('neu');
+  const stapelOben = EINSTELLUNGEN.stapelPosition !== 'unten';
+  const wenigBewegung = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const GRIFF = '<svg viewBox="0 0 8 14" aria-hidden="true" focusable="false"><g fill="currentColor">'
+    + '<circle cx="2" cy="2" r="1.3"/><circle cx="6" cy="2" r="1.3"/><circle cx="2" cy="7" r="1.3"/>'
+    + '<circle cx="6" cy="7" r="1.3"/><circle cx="2" cy="12" r="1.3"/><circle cx="6" cy="12" r="1.3"/></g></svg>';
+
+  const koerbe = []; // Felder: { nr, titel, el, kopf, liste, karten (in der Reihenfolge des Ablegens) }
+  const karten = []; // Karten: { nr, text, li, el, zeichen, ziel (richtiges Feld), korb (Feld, in dem sie liegt; null = Stapel), status, fehler }
+  let stapel = [];        // Karten auf dem Stapel, stapel[0] = oberste Karte
+  let ausgewaehlt = false; // oberste Karte per Klick ausgewählt
+  let fehler = null;       // { feld, timer } solange eine falsch zugeordnete Karte rot angezeigt wird
+
+  const oberste = () => stapel[0] || null;
+  const ansage = text => { ansageEl.textContent = text; };
+  const anzahl = n => n === 1 ? '1 Karte' : n + ' Karten';
+
+  // ---------- Felder und Karten einlesen ----------
+  function feldErzeugen(titelHtml) {
+    const nr = koerbe.length;
+    const el = document.createElement('section');
+    el.className = 'korb leer';
+    el.dataset.nr = nr;
+    el.setAttribute('aria-labelledby', 'feld-titel-' + nr);
+    const h = document.createElement('h2');
+    h.className = 'korb-titel';
+    const kopf = document.createElement('button');
+    kopf.type = 'button';
+    kopf.className = 'korb-kopf';
+    kopf.id = 'feld-titel-' + nr;
+    kopf.innerHTML = titelHtml;
+    h.append(kopf);
+    const liste = document.createElement('ul');
+    liste.className = 'korb-liste';
+    const leer = document.createElement('p');
+    leer.className = 'korb-leer';
+    leer.setAttribute('aria-hidden', 'true');
+    leer.textContent = 'Karten hierher ziehen';
+    el.append(h, liste, leer);
+    koerbeEl.append(el);
+    const titel = kopf.textContent.replace(/\s+/g, ' ').trim();
+    liste.setAttribute('aria-label', 'Karten im Feld ' + titel);
+    koerbe.push({ nr, titel, el, kopf, liste, karten: [] });
+  }
+
+  function karteErzeugen(html, zielFeld) {
+    const nr = karten.length;
+    const li = document.createElement('li');
+    li.className = 'eintrag';
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'karte';
+    el.dataset.nr = nr;
+    const griff = document.createElement('span');
+    griff.className = 'griff';
+    griff.setAttribute('aria-hidden', 'true');
+    griff.innerHTML = GRIFF;
+    const textEl = document.createElement('span');
+    textEl.className = 'karten-text';
+    textEl.innerHTML = html;
+    const zeichen = document.createElement('span');
+    zeichen.className = 'zeichen';
+    zeichen.setAttribute('aria-hidden', 'true');
+    el.append(griff, textEl, zeichen);
+    li.append(el);
+    el.addEventListener('animationend', () => el.classList.remove('gelandet', 'nachruecken', 'wackeln'));
+    // Unsichtbare Kopie im Stapel: hält ihn so hoch wie die längste Karte
+    const mass = document.createElement('div');
+    mass.className = 'mass';
+    mass.setAttribute('aria-hidden', 'true');
+    const kopie = document.createElement('div');
+    kopie.className = 'karte';
+    kopie.innerHTML = el.innerHTML;
+    mass.append(kopie);
+    stapelEl.prepend(mass);
+    karten.push({ nr, text: textEl.textContent.replace(/\s+/g, ' ').trim(), li, el, zeichen, ziel: zielFeld, korb: null, status: 'offen', fehler: 0 });
+  }
+
+  document.getElementById('aufgabe').textContent
+    .split('\n').map(z => z.trim()).filter(Boolean)
+    .forEach(zeile => {
+      const titel = zeile.match(/^#+\s*(.*)$/);
+      if (titel) { feldErzeugen(titel[1]); return; }
+      if (koerbe.length === 0) feldErzeugen('Feld 1'); // Aussage ohne Überschrift davor
+      karteErzeugen(zeile, koerbe[koerbe.length - 1]);
+    });
+
+  document.getElementById('karten-hinweis').textContent = 'Wähle das Feld, in das diese Karte gehört. '
+    + (koerbe.length === 2
+      ? 'Mit der Pfeiltaste nach links oder rechts legst du sie direkt in das linke oder rechte Feld.'
+      : 'Mit den Zahlentasten 1 bis ' + koerbe.length + ' legst du sie direkt in das entsprechende Feld.');
+
+  function mischen() {
+    stapel = karten.slice();
+    for (let i = stapel.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [stapel[i], stapel[j]] = [stapel[j], stapel[i]];
+    }
+  }
+
+  bereichEl.classList.add(stapelOben ? 'oben' : 'unten');
+  if (!stapelOben) koerbeEl.after(bereichEl);
+  if (EINSTELLUNGEN.stapelFixiert) {
+    bereichEl.classList.add('fixiert');
+    // Damit beim Springen mit der Tab-Taste nichts unter dem Stapel verschwindet
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(() => {
+        const abstand = bereichEl.offsetHeight + 12 + 'px';
+        if (stapelOben) wurzel.style.scrollPaddingTop = abstand;
+        else wurzel.style.scrollPaddingBottom = abstand;
+      }).observe(bereichEl);
+    }
+  }
+
+  // ---------- Darstellung ----------
+  // Legt jede Karte auf den Stapel bzw. in ihr Feld. "ort" sagt, wo sie liegt (null = Stapel).
+  // Normalerweise der aktuelle Stand; beim Einpassen wird damit auch der fertige Zustand ausprobiert.
+  function anordnen(ort = k => k.korb) {
+    const fokus = document.activeElement;
+    const rang = (f, k) => { const i = f.karten.indexOf(k); return i === -1 ? 1000 + k.nr : i; };
+    const aufStapel = stapel.filter(k => !ort(k));
+    const oben = aufStapel[0] || null;
+    const verteilt = new Set();
+    koerbe.forEach(f => {
+      const hier = karten.filter(k => ort(k) === f).sort((a, b) => rang(f, a) - rang(f, b));
+      hier.forEach(k => verteilt.add(k));
+      f.el.classList.toggle('leer', hier.length === 0);
+      const jetzt = [...f.liste.children];
+      if (jetzt.length !== hier.length || hier.some((k, i) => jetzt[i] !== k.li)) hier.forEach(k => f.liste.append(k.li));
+    });
+    if (oben && oben.li.parentNode !== obenEl) obenEl.append(oben.li);
+    // Karten weiter unten im Stapel sind nicht zu sehen
+    karten.forEach(k => { if (k !== oben && !verteilt.has(k) && k.li.parentNode) k.li.remove(); });
+    stapelEl.dataset.rest = aufStapel.length;
+    stapelEl.classList.toggle('leer', !oben);
+    if (fokus && fokus !== document.activeElement && fokus.isConnected) fokus.focus({ preventScroll: true });
+  }
+
+  function darstellen() {
+    anordnen();
+    const oben = oberste();
+    karten.forEach(k => {
+      const el = k.el;
+      el.classList.remove('richtig', 'falsch', 'geloest');
+      if (k.status !== 'offen') el.classList.add(k.status);
+      el.classList.toggle('gesperrt', !!k.korb);
+      el.tabIndex = k.korb ? -1 : 0; // abgelegte Karten werden beim Springen mit der Tab-Taste übersprungen
+      el.classList.toggle('ausgewaehlt', ausgewaehlt && k === oben);
+      k.zeichen.textContent = { richtig: '✓', falsch: '✗' }[k.status] || '';
+      if (k === oben) {
+        el.setAttribute('aria-label', 'Oberste Karte: ' + k.text + (k.status === 'falsch' ? ', falsch' : ''));
+        el.setAttribute('aria-describedby', 'karten-hinweis');
+        el.setAttribute('aria-pressed', String(ausgewaehlt));
+        el.setAttribute('aria-disabled', fehler ? 'true' : 'false');
+      } else {
+        const zusatz = { richtig: ', richtig', geloest: ', Lösung' }[k.status] || '';
+        el.setAttribute('aria-label', k.text + (k.korb ? ' – im Feld ' + k.korb.titel : '') + zusatz);
+        el.removeAttribute('aria-describedby');
+        el.removeAttribute('aria-pressed');
+        el.setAttribute('aria-disabled', 'true');
+      }
+    });
+    koerbe.forEach(f => f.kopf.setAttribute('aria-label', 'Feld ' + f.titel + ', ' + anzahl(f.karten.length)));
+    infoEl.textContent = stapel.length ? 'noch ' + anzahl(stapel.length) : '';
+    stapelEl.classList.toggle('fehler', !!fehler);
+    wurzel.classList.toggle('stapel-aktiv', !!oben && !fehler);
+    wurzel.classList.toggle('auswahl-aktiv', ausgewaehlt && !!oben);
+    auswertungEl.classList.toggle('leer', !ergebnisEl.textContent && btnLoesungen.hidden && btnNeu.hidden);
+  }
+
+  function animieren(k, name) {
+    if (wenigBewegung) return;
+    k.el.classList.remove('gelandet', 'nachruecken', 'wackeln');
+    void k.el.offsetWidth;
+    k.el.classList.add(name);
+  }
+
+  // ---------- Oberste Karte zuordnen ----------
+  function zuordnen(f, perTastatur) {
+    const k = oberste();
+    if (!k || fehler) return;
+    ausgewaehlt = false;
+    btnNeu.hidden = false;
+
+    if (f === k.ziel) {
+      stapel.shift();
+      k.korb = f;
+      f.karten.push(k);
+      k.status = 'richtig';
+      if (stapel.length === 0) fertig();
+      darstellen();
+      animieren(k, 'gelandet');
+      const naechste = oberste();
+      if (naechste) {
+        animieren(naechste, 'nachruecken');
+        ansage('Richtig. Nächste Karte: „' + naechste.text + '“');
+        if (perTastatur) naechste.el.focus();
+      } else if (perTastatur) {
+        btnNeu.focus();
+      }
+      return;
+    }
+
+    // Falsch: Karte kurz rot zeigen, dann kommt sie zurück unter den Stapel
+    k.fehler++;
+    k.status = 'falsch';
+    f.el.classList.add('daneben');
+    if (EINSTELLUNGEN.loesungenAnzeigenErlaubt) btnLoesungen.hidden = false;
+    fehler = { feld: f, timer: setTimeout(fehlerBeenden, EINSTELLUNGEN.wartezeitBeiFehler * 1000) };
+    darstellen();
+    animieren(k, 'wackeln');
+    ansage('Falsch: „' + k.text + '“ gehört nicht ins Feld ' + f.titel + '. Die Karte kommt zurück unter den Stapel.');
+    if (perTastatur) k.el.focus(); // danach springt der Fokus auf die nächste Karte
+  }
+
+  function fehlerBeenden() {
+    if (!fehler) return;
+    clearTimeout(fehler.timer);
+    fehler.feld.el.classList.remove('daneben');
+    fehler = null;
+    const k = stapel.shift();
+    k.status = 'offen';
+    stapel.push(k);
+    const hatteFokus = document.activeElement === k.el;
+    darstellen();
+    const naechste = oberste();
+    if (naechste !== k) animieren(naechste, 'nachruecken');
+    ansage('Nächste Karte: „' + naechste.text + '“');
+    if (hatteFokus) naechste.el.focus({ preventScroll: true });
+  }
+
+  function fertig() {
+    const gesamt = karten.length;
+    const ersterVersuch = karten.filter(k => k.fehler === 0).length;
+    ergebnisEl.textContent = ersterVersuch === gesamt
+      ? `Alle ${gesamt} Aussagen richtig zugeordnet. Sehr gut!`
+      : `Alle ${gesamt} Aussagen richtig zugeordnet, ${ersterVersuch} davon gleich beim ersten Versuch.`;
+    btnLoesungen.hidden = true;
+    btnNeu.hidden = false;
+  }
+
+  function fehlerAbbrechen() {
+    if (!fehler) return;
+    clearTimeout(fehler.timer);
+    fehler.feld.el.classList.remove('daneben');
+    fehler = null;
+  }
+
+  function loesungenAnzeigen() {
+    fehlerAbbrechen();
+    ausgewaehlt = false;
+    stapel.forEach(k => { k.korb = k.ziel; k.status = 'geloest'; });
+    stapel = [];
+    // In jedem Feld stehen die Karten jetzt in der Reihenfolge der Aufgabe
+    koerbe.forEach(f => { f.karten = karten.filter(k => k.korb === f); });
+    const richtig = karten.filter(k => k.status === 'richtig').length;
+    ergebnisEl.textContent = `${richtig} von ${karten.length} Aussagen selbst richtig zugeordnet. Die gelb markierten Aussagen zeigen die Lösung.`;
+    btnLoesungen.hidden = true;
+    btnNeu.hidden = false;
+    darstellen();
+  }
+
+  function neuBeginnen(perTastatur) {
+    fehlerAbbrechen();
+    ausgewaehlt = false;
+    karten.forEach(k => { k.korb = null; k.status = 'offen'; k.fehler = 0; });
+    koerbe.forEach(f => { f.karten = []; });
+    mischen();
+    ergebnisEl.textContent = '';
+    btnLoesungen.hidden = true;
+    btnNeu.hidden = true;
+    darstellen();
+    animieren(oberste(), 'nachruecken');
+    if (perTastatur) oberste().el.focus();
+  }
+
+  // ---------- Klicken / Tippen / Tastatur ----------
+  // Verhindert, dass nach dem Ziehen zusätzlich ein Klick auf die gezogene Karte ausgelöst wird
+  let klickSperre = { el: null, bis: 0 };
+
+  function karteAngeklickt(perTastatur) {
+    if (fehler) return;
+    ausgewaehlt = !ausgewaehlt;
+    darstellen();
+    if (ausgewaehlt && perTastatur) {
+      koerbe[0].kopf.focus();
+      ansage('Karte ausgewählt. Wähle jetzt das Feld, in das sie gehört.');
+    }
+  }
+
+  document.querySelector('main').addEventListener('click', e => {
+    if (klickSperre.el && klickSperre.el.contains(e.target) && performance.now() < klickSperre.bis) return;
+    const perTastatur = e.detail === 0;
+    const oben = oberste();
+    if (oben && oben.el.contains(e.target)) { karteAngeklickt(perTastatur); return; }
+    const feldEl = e.target.closest('.korb');
+    if (feldEl) { zuordnen(koerbe[feldEl.dataset.nr], perTastatur); return; }
+    // Klick daneben hebt die Auswahl auf
+    if (ausgewaehlt && !e.target.closest('button, a')) { ausgewaehlt = false; darstellen(); }
+  });
+
+  // Pfeiltasten (bei zwei Feldern) bzw. Zahlentasten legen die oberste Karte direkt in ein Feld
+  stapelEl.addEventListener('keydown', e => {
+    const oben = oberste();
+    if (!oben || e.target !== oben.el || e.altKey || e.ctrlKey || e.metaKey) return;
+    let f = null;
+    if (koerbe.length === 2 && e.key === 'ArrowLeft') f = koerbe[0];
+    else if (koerbe.length === 2 && e.key === 'ArrowRight') f = koerbe[1];
+    else if (/^[1-9]$/.test(e.key)) f = koerbe[Number(e.key) - 1];
+    if (!f) return;
+    e.preventDefault();
+    zuordnen(f, true);
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (zug) zugBeenden(false);
+    else if (ausgewaehlt) { ausgewaehlt = false; darstellen(); }
+  });
+
+  // ---------- Ziehen und Ablegen (Maus, Finger, Stift) ----------
+  let zug = null;
+
+  document.addEventListener('pointerdown', e => {
+    if (zug || fehler || !e.isPrimary) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const oben = oberste();
+    if (!oben || !oben.el.contains(e.target)) return;
+    // Auf dem Touchscreen wird am Griff gezogen, damit man über die Karte weiter scrollen kann.
+    // Passt die Übung ohne Scrollen in den Rahmen, geht es mit der ganzen Karte.
+    if (e.pointerType === 'touch' && !e.target.closest('.griff') && !wurzel.classList.contains('eingepasst')) return;
+    zug = { k: oben, el: oben.el, id: e.pointerId, typ: e.pointerType, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, aktiv: false, ziel: null };
+    try { oben.el.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+
+  document.addEventListener('pointermove', e => {
+    if (!zug || e.pointerId !== zug.id) return;
+    zug.x = e.clientX;
+    zug.y = e.clientY;
+    if (!zug.aktiv) {
+      const schwelle = zug.typ === 'mouse' ? 5 : 8;
+      if (Math.hypot(zug.x - zug.startX, zug.y - zug.startY) < schwelle) return;
+      zugStarten();
+    }
+    e.preventDefault();
+    geistBewegen();
+    zielAktualisieren();
+  });
+
+  document.addEventListener('pointerup', e => {
+    if (!zug || e.pointerId !== zug.id) return;
+    if (zug.aktiv) { zug.x = e.clientX; zug.y = e.clientY; zielAktualisieren(); }
+    zugBeenden(true);
+  });
+  document.addEventListener('pointercancel', e => {
+    if (zug && e.pointerId === zug.id) zugBeenden(false);
+  });
+  document.addEventListener('lostpointercapture', e => {
+    if (zug && e.pointerId === zug.id) zugBeenden(false);
+  });
+  // Fallback für ältere Mobilbrowser: Seite nicht scrollen, während eine Karte gezogen wird
+  document.addEventListener('touchmove', e => { if (zug) e.preventDefault(); }, { passive: false });
+
+  function zugStarten() {
+    zug.aktiv = true;
+    if (ausgewaehlt) { ausgewaehlt = false; darstellen(); }
+    const r = zug.el.getBoundingClientRect();
+    const rem = parseFloat(getComputedStyle(wurzel).fontSize);
+    const breite = Math.min(r.width, 22 * rem); // die große Karte schwebt etwas schmaler
+    const geist = document.createElement('div');
+    geist.className = 'geist';
+    geist.setAttribute('aria-hidden', 'true');
+    geist.innerHTML = zug.el.innerHTML;
+    geist.querySelector('.zeichen').remove();
+    geist.style.width = breite + 'px';
+    document.body.append(geist);
+    zug.geist = geist;
+    // Zeiger bleibt an derselben Stelle der Karte, nur verhältnismäßig verkleinert
+    zug.offX = Math.min(Math.max((zug.startX - r.left) * breite / r.width, 0), breite - 8);
+    zug.offY = Math.min(Math.max(zug.startY - r.top, 0), geist.getBoundingClientRect().height);
+    zug.el.classList.add('quelle');
+    wurzel.classList.add('ziehen');
+    requestAnimationFrame(autoScrollen);
+  }
+
+  function geistBewegen() {
+    zug.geist.style.transform = 'translate(' + (zug.x - zug.offX) + 'px,' + (zug.y - zug.offY) + 'px)';
+  }
+
+  function zielFinden(x, y) {
+    const treffer = document.elementFromPoint(x, y);
+    const fEl = treffer && treffer.closest('.korb');
+    if (fEl) return koerbe[fEl.dataset.nr];
+    // Etwas Toleranz: nächstes Feld in der Nähe des Zeigers
+    let beste = null, besterAbstand = 24;
+    koerbe.forEach(f => {
+      const r = f.el.getBoundingClientRect();
+      const d = Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom));
+      if (d < besterAbstand) { beste = f; besterAbstand = d; }
+    });
+    return beste;
+  }
+
+  function zielAktualisieren() {
+    const ziel = zielFinden(zug.x, zug.y);
+    if (ziel === zug.ziel) return;
+    if (zug.ziel) zug.ziel.el.classList.remove('ziel');
+    zug.ziel = ziel;
+    if (ziel) ziel.el.classList.add('ziel');
+  }
+
+  function zugBeenden(ablegen) {
+    const z = zug;
+    zug = null;
+    if (!z) return;
+    try { z.el.releasePointerCapture(z.id); } catch (_) {}
+    if (!z.aktiv) return; // war nur ein Klick bzw. Antippen
+    klickSperre = { el: z.el, bis: performance.now() + 400 };
+    if (z.ziel) z.ziel.el.classList.remove('ziel');
+    z.geist.remove();
+    z.el.classList.remove('quelle');
+    wurzel.classList.remove('ziehen');
+    if (ablegen && z.ziel) zuordnen(z.ziel, false);
+  }
+
+  // Seite scrollt mit, wenn man die Karte an den oberen oder unteren Rand zieht
+  function autoScrollen() {
+    if (!zug || !zug.aktiv) return;
+    const zone = 60, maxTempo = 18, y = zug.y;
+    let oben = 0, unten = window.innerHeight;
+    let obenBegrenzt = false, untenBegrenzt = false; // Rand wird vom Stapel gebildet
+    if (EINSTELLUNGEN.stapelFixiert && !document.querySelector('main.nebeneinander')) {
+      const r = bereichEl.getBoundingClientRect();
+      if (stapelOben && r.bottom > 0) { oben = Math.min(r.bottom, unten - 2 * zone); obenBegrenzt = true; }
+      if (!stapelOben && r.top < unten) { unten = Math.max(r.top, 2 * zone); untenBegrenzt = true; }
+    }
+    // Ein Rand scrollt erst, wenn der Zeiger zwischendurch bei den Feldern war. So scrollt die Seite
+    // nicht ungewollt, wenn man die Karte vom Stapel aus nur am Rand vorbei zieht.
+    if (y >= oben + zone) zug.obenScharf = true;
+    if (y <= unten - zone) zug.untenScharf = true;
+    let tempo = 0;
+    if (zug.obenScharf && y < oben + zone && !(obenBegrenzt && y < oben)) {
+      tempo = -maxTempo * Math.min(1, (oben + zone - y) / zone);
+    } else if (zug.untenScharf && y > unten - zone && !(untenBegrenzt && y > unten)) {
+      tempo = maxTempo * Math.min(1, (y - (unten - zone)) / zone);
+    }
+    if (tempo) {
+      const vorher = window.scrollY;
+      window.scrollBy(0, tempo);
+      if (window.scrollY !== vorher) zielAktualisieren();
+    }
+    requestAnimationFrame(autoScrollen);
+  }
+
+  // Auf dem Handy innerhalb von Genially: Link zum Öffnen in eigenem Fenster anzeigen
+  (function () {
+    const eingebettet = window.self !== window.top;
+    const kleinerBildschirm = Math.min(screen.width, screen.height) < 600;
+    if (eingebettet && kleinerBildschirm) {
+      const link = document.getElementById('extern');
+      link.href = location.href;
+      link.hidden = false;
+    }
+  })();
+
+  btnLoesungen.addEventListener('click', loesungenAnzeigen);
+  btnNeu.addEventListener('click', e => neuBeginnen(e.detail === 0));
+
+  // ---------- Für das Einpassen in den Rahmen (Baustein unten) ----------
+  // Zwei Anordnungen: Stapel über den Feldern – oder bei breiten Rahmen links daneben
+  window.einpassenVarianten = [[], ['nebeneinander']];
+  // Die Schrift wird so gewählt, dass die Übung auch dann noch ohne Scrollen passt,
+  // wenn alle Karten in den Feldern liegen.
+  window.einpassenPruefen = function () {
+    const main = document.querySelector('main');
+    anordnen(k => k.ziel);
+    const unterkante = main.getBoundingClientRect().bottom + window.scrollY
+      + parseFloat(getComputedStyle(document.body).paddingBottom);
+    const passt = unterkante <= window.innerHeight - 6 && wurzel.scrollWidth <= window.innerWidth + 1;
+    anordnen();
+    return passt;
+  };
+
+  mischen();
+  darstellen();
+</script>
+<!-- =====================================================================
+     EINPASSEN: Die Übung füllt ihren Rahmen (z. B. in Genially) möglichst
+     ohne Scrollen. Die Schrift – und damit alles, was in rem angegeben ist –
+     wird so groß gewählt, wie es die Höhe UND die Breite des Rahmens erlauben.
+     Bei breiten Rahmen dürfen die Begriffe rechts neben Text bzw. Bild stehen.
+     Passt die Übung selbst bei kleinster Schrift nicht (z. B. Handy),
+     wird wie bisher gescrollt.
+     Einbau: diesen ganzen Block ganz unten einfügen, direkt vor dem schließenden body-Tag.
+     ===================================================================== -->
+<style>
+  /* Im eingepassten Zustand etwas weniger Rand, damit mehr Platz für die Übung bleibt */
+  html.einpassen body { padding: clamp(10px, 3.5vh, 36px) clamp(14px, 3.5vw, 40px); }
+  html.eingepasst .wortauswahl.fixiert { max-height: none; overflow: visible; }
+  /* Fotos (Bildvergleich): Höhe in rem statt nach Bildschirmhöhe, damit sie beim Einpassen mitwachsen */
+  html.eingepasst { --bild-hoehe: 12rem; }
+
+  /* Rückmeldung neben den Knöpfen statt darüber – spart eine Zeile Höhe */
+  html.einpassen .auswertung { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.25rem; margin-top: 1.1rem; padding-top: .9rem; }
+  html.einpassen .auswertung .knoepfe { order: 1; }
+  html.einpassen .auswertung .ergebnis { order: 2; flex: 1 1 18rem; margin: 0; }
+
+  /* Breiter Rahmen: Begriffe rechts neben Text bzw. Bild */
+  main.seitlich {
+    display: grid;
+    grid-template-columns: minmax(0, max-content) minmax(11rem, 17rem);
+    justify-content: center;
+    column-gap: clamp(1rem, 2.5vw, 2.25rem);
+    grid-auto-flow: row dense;
+    align-items: start;
+  }
+  main.seitlich > * { grid-column: 1 / -1; }
+  main.seitlich > .text,
+  main.seitlich > .bild { grid-column: 1; }
+  main.seitlich > .wortauswahl { grid-column: 2; margin: 0; }
+  main.seitlich > .wortauswahl.fixiert { position: static; box-shadow: none; }
+</style>
+<script>
+  // ====== HIER ANPASSEN: Einpassen in den Rahmen ======
+  const EINPASSEN = {
+    aktiv: true,     // false = wie früher: Schrift richtet sich nur nach der Breite, Höhe egal
+    minSchrift: 13,  // px – kleiner wird die Schrift nie. Passt es dann noch nicht, wird gescrollt.
+    minSchriftImRahmen: 11, // px – dasselbe, wenn die Übung eingebettet ist (Genially vergrößert
+                            //      die ganze Seite beim Anzeigen ohnehin auf Bildschirmgröße)
+    maxSchrift: 30,  // px – größer wird die Schrift nie (bei sehr großen Rahmen)
+    seitlich: true   // true = bei breiten Rahmen dürfen die Begriffe rechts neben Text/Bild stehen
+  };
+
+  // ---------- Ab hier nichts mehr ändern nötig ----------
+  (function () {
+    if (!EINPASSEN.aktiv) return;
+    const html = document.documentElement;
+    const main = document.querySelector('main');
+    if (!main) return;
+    html.classList.add('einpassen');
+
+    // Welche Anordnungen ausprobiert werden (Klassen an <main>). Eine Übung kann eigene
+    // Varianten vorgeben (window.einpassenVarianten) und eine Zusatzprüfung (window.einpassenPruefen).
+    let varianten = window.einpassenVarianten || [[], ['seitlich']];
+    if (!EINPASSEN.seitlich || !main.querySelector(':scope > .wortauswahl')) {
+      varianten = varianten.filter(v => !v.includes('seitlich'));
+    }
+    if (varianten.length === 0) varianten = [[]];
+    const alleKlassen = [...new Set(varianten.flat())];
+    // Platzhalter für die Rückmeldung nach dem Prüfen – damit später nichts überläuft
+    const PLATZHALTER = '10 von 12 richtig. Tausche die rot markierten Antworten aus, fülle die 2 leeren Stellen und prüfe dann noch einmal.';
+
+    let laeuft = false, nachholen = false, geplant = false;
+
+    // Passt alles in den Rahmen? Beim Suchen mit etwas Reserve, damit später nichts knapp überläuft.
+    const unterkante = () => main.getBoundingClientRect().bottom + window.scrollY
+      + parseFloat(getComputedStyle(document.body).paddingBottom);
+    const passt = (reserve = 6) => unterkante() <= window.innerHeight - reserve
+      && html.scrollWidth <= window.innerWidth + 1;
+    const ziehtGerade = () => html.classList.contains('ziehen') || document.body.classList.contains('zieht');
+
+    function setzen(px, v) {
+      html.style.fontSize = px + 'px';
+      alleKlassen.forEach(k => main.classList.toggle(k, v.includes(k)));
+    }
+
+    function einpassen() {
+      if (ziehtGerade()) { nachholen = true; return; }
+      laeuft = true;
+      const breite = window.innerWidth;
+      const eingebettet = window.self !== window.top;
+      const normal = Math.min(22, Math.max(15, 0.009 * breite + 9)); // bisherige Größe nach Breite
+      const minimum = eingebettet ? EINPASSEN.minSchriftImRahmen : EINPASSEN.minSchrift;
+      const unten = breite < 600 ? normal : Math.min(minimum, normal);
+      const oben = Math.max(unten, Math.min(EINPASSEN.maxSchrift, Math.max(normal, breite / 40)));
+
+      // Spätere Inhalte schon mit einplanen: Rückmeldung und alle Knöpfe
+      const ergebnis = document.getElementById('ergebnis');
+      let probe = null;
+      if (ergebnis && !ergebnis.textContent.trim()) {
+        probe = ergebnis.cloneNode(false);
+        probe.removeAttribute('id');
+        probe.removeAttribute('aria-live');
+        probe.setAttribute('aria-hidden', 'true');
+        probe.textContent = PLATZHALTER;
+        ergebnis.after(probe);
+      }
+      const versteckt = [...document.querySelectorAll('.knoepfe [hidden]')];
+      versteckt.forEach(b => { b.hidden = false; });
+      html.classList.add('eingepasst');
+      const x = window.scrollX, y = window.scrollY;
+
+      let beste = null;
+      varianten.forEach(v => {
+        setzen(unten, v);
+        if (!passt()) return;
+        let lo = unten, hi = oben;
+        setzen(hi, v);
+        if (passt()) lo = hi;
+        else {
+          while (hi - lo > 0.2) {
+            const mitte = (lo + hi) / 2;
+            setzen(mitte, v);
+            if (passt()) lo = mitte; else hi = mitte;
+          }
+        }
+        setzen(lo, v);
+        // Zusatzprüfung der Übung (z. B. Beschriftungen im Bild lesbar). Schlägt sie fehl,
+        // die größte kleinere Schrift suchen, bei der beides erfüllt ist.
+        const pruefung = window.einpassenPruefen;
+        if (typeof pruefung === 'function' && !pruefung()) {
+          const beides = () => passt() && pruefung();
+          setzen(unten, v);
+          if (!beides()) return;
+          let gut = unten, schlecht = lo;
+          while (schlecht - gut > 0.2) {
+            const mitte = (gut + schlecht) / 2;
+            setzen(mitte, v);
+            if (beides()) gut = mitte; else schlecht = mitte;
+          }
+          lo = gut;
+        }
+        // Eine spätere Anordnung wird nur genommen, wenn sie deutlich größere Schrift erlaubt
+        if (!beste || lo > beste.px * 1.08) beste = { px: lo, v };
+      });
+
+      if (probe) probe.remove();
+      versteckt.forEach(b => { b.hidden = true; });
+      if (beste) {
+        setzen(beste.px, beste.v);
+      } else {
+        // Passt nirgends: es wird gescrollt. Im eingebetteten Rahmen mit kleiner Schrift
+        // (möglichst wenig scrollen), sonst (z. B. Handy) in normaler Größe.
+        html.classList.remove('eingepasst');
+        setzen(normal, []);
+        html.style.fontSize = (eingebettet && breite >= 600) ? unten + 'px' : '';
+      }
+      window.scrollTo(x, y);
+      laeuft = false;
+    }
+
+    function planen() {
+      if (geplant) return;
+      geplant = true;
+      requestAnimationFrame(() => { geplant = false; einpassen(); });
+    }
+
+    window.addEventListener('resize', planen);
+    window.addEventListener('load', planen);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(planen);
+    // Wird der Inhalt später doch größer (z. B. ein langes Wort in einer Lücke), neu einpassen
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(() => {
+        if (!laeuft && html.classList.contains('eingepasst') && !passt(0)) planen();
+      }).observe(main);
+    }
+    // Während gezogen wird, nichts verschieben – erst danach
+    document.addEventListener('pointerup', () => { if (nachholen) { nachholen = false; setTimeout(planen, 0); } });
+    document.addEventListener('pointercancel', () => { if (nachholen) { nachholen = false; setTimeout(planen, 0); } });
+    einpassen();
+  })();
+</script>
+</body>
+</html>
