@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reihenfolge (Sortieren)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<script>if (window.self !== window.top) document.documentElement.classList.add('eingebettet');</script>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #161B22;              /* Hintergrund, wenn die Übung direkt im Browser geöffnet wird */
+    --bg-im-rahmen: transparent; /* Hintergrund, wenn die Übung in Genially eingebettet ist */
+    --max-breite: none;         /* none = volle Breite des Rahmens; z. B. 46rem = schmalerer Textblock */
+    --ink: #E6EBF0;
+    --muted: #9AA7B3;
+    --line: #2E3843;
+    --field: #212933;
+    --field-line: #3D4957;
+    --chip: #2B3541;            /* Karten */
+    --accent: #5BB8C4;
+    --accent-bg: rgba(91, 184, 196, .18);
+    --ok: #7EDDA3;   --ok-bg: rgba(92, 201, 138, .14);
+    --bad: #FF8F84;  --bad-bg: rgba(240, 122, 110, .15);
+    --sol: #F0CD6E;  --sol-bg: rgba(232, 193, 90, .14);
+  }
+  * { box-sizing: border-box; }
+  /* Schriftgröße wächst mit der Breite des Rahmens mit */
+  html { font-size: clamp(15px, 0.9vw + 9px, 22px); }
+  html.eingebettet, html.eingebettet body { background: var(--bg-im-rahmen); }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  body { padding: clamp(16px, 4vw, 40px); }
+  main { max-width: var(--max-breite); margin: 0 auto; }
+
+  h1 { font-size: 1.5rem; line-height: 1.25; margin: 0 0 .4rem; font-weight: 700; letter-spacing: .005em; }
+  .anleitung { color: var(--muted); margin: 0 0 1.5rem; line-height: 1.5; }
+
+  /* ---------- Liste mit den Plätzen 1, 2, 3 … ---------- */
+  .reihe {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    width: fit-content;   /* alle Karten so breit wie der längste Schritt */
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: .45rem;
+  }
+  .platz { display: flex; align-items: stretch; gap: .6rem; }
+  .nr {
+    flex: 0 0 1.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    color: var(--muted);
+    font-weight: 700;
+    font-size: .95rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- Karten ---------- */
+  .karte {
+    font: inherit;
+    font-size: 1.05rem;
+    line-height: 1.35;
+    color: var(--ink);
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    margin: 0;
+    padding: .45rem .85rem .45rem .35rem;
+    text-align: left;
+    background: var(--chip);
+    border: 1px solid var(--field-line);
+    border-radius: 6px;
+    cursor: grab;
+    touch-action: manipulation;  /* auf dem Handy: über die Karte kann weiter gescrollt werden */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color .15s, border-color .15s, color .15s;
+  }
+  .karte:not(.gesperrt):hover { border-color: var(--accent); }
+  .karte:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* Griff (Punkte links) – auf dem Handy wird hier gezogen */
+  .griff {
+    flex: none;
+    min-width: 1.4em;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 .3rem;
+    margin: -.45rem 0;
+    color: var(--muted);
+    touch-action: none;
+  }
+  .griff svg { width: .5em; height: .9em; display: block; }
+  .karte.fest .griff svg { width: .8em; height: .8em; }
+  .karten-text { flex: 1 1 auto; min-width: 0; overflow-wrap: break-word; }
+  /* Platz für ✓ / ✗ ist immer reserviert, damit die Karten beim Prüfen nicht breiter werden */
+  .zeichen { flex: none; width: 1em; text-align: center; font-weight: 700; }
+  @media (pointer: coarse) { .griff { padding: 0 .55rem; } }
+  /* Passt die Übung ohne Scrollen in den Rahmen, kann auf dem Touchscreen die ganze Karte gezogen werden */
+  html.eingepasst .karte:not(.gesperrt) { touch-action: none; }
+
+  /* Karte ausgewählt (Klick-Modus): andere Karten laden zum Anklicken ein */
+  .karte.ausgewaehlt { background: var(--accent-bg); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  html.auswahl-aktiv .karte:not(.gesperrt):not(.ausgewaehlt) { border-color: var(--accent); border-style: dashed; }
+
+  .karte.richtig { background: var(--ok-bg);  border: 1px solid var(--ok);  color: var(--ok); }
+  .karte.falsch  { background: var(--bad-bg); border: 1px solid var(--bad); color: var(--bad); }
+  .karte.geloest { background: var(--sol-bg); border: 1px dashed var(--sol); color: var(--sol); }
+  .karte.richtig .griff, .karte.falsch .griff, .karte.geloest .griff { color: inherit; }
+  .karte.gesperrt { cursor: default; }
+  .karte.gesperrt:not(.fest) .griff svg { visibility: hidden; }
+
+  /* Fester Schritt (z. B. Abschluss) */
+  .karte.fest { background: transparent; border: 1px dashed var(--field-line); color: var(--muted); }
+
+  /* Platz, an dem die gezogene Karte gerade landen würde */
+  .karte.quelle { background: var(--accent-bg); border: 1px dashed var(--accent); box-shadow: none; }
+  .karte.quelle > * { visibility: hidden; }
+
+  /* Karte, die beim Ziehen am Zeiger hängt */
+  .geist {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 1000;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .45rem .85rem .45rem .35rem;
+    line-height: 1.35;
+    color: var(--ink);
+    background: #33404E;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .5);
+    will-change: transform;
+  }
+  html.ziehen, html.ziehen * { cursor: grabbing !important; user-select: none !important; -webkit-user-select: none !important; }
+
+  .extern { display: inline-block; margin: 0 0 1.5rem; color: var(--accent); font-weight: 700; text-underline-offset: 3px; }
+  .extern[hidden] { display: none; }
+  .extern:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 2px; }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+  .auswertung { margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+  .ergebnis { margin: 0 0 1rem; font-size: 1.05rem; line-height: 1.5; }
+  .ergebnis:empty { display: none; }
+  .knoepfe { display: flex; flex-wrap: wrap; gap: .6rem; }
+
+  .knoepfe button {
+    font: inherit;
+    font-size: 1rem;
+    padding: .6rem 1.1rem;
+    border-radius: 6px;
+    border: 1px solid var(--accent);
+    cursor: pointer;
+    transition: background-color .15s, color .15s;
+  }
+  .knoepfe button[hidden] { display: none; }
+  .primaer   { background: var(--accent); color: #0D1F23; font-weight: 700; }
+  .primaer:hover { background: #74C8D3; border-color: #74C8D3; }
+  .sekundaer { background: transparent; color: var(--accent); }
+  .sekundaer:hover { background: rgba(91, 184, 196, .12); }
+  .knoepfe button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .karte, .knoepfe button { transition: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+  <!-- ====== HIER ANPASSEN: Überschrift und Arbeitsanweisung ====== -->
+  <h1>Zerlegen der WALTHER P99 Q</h1>
+  <p class="anleitung">Bringe die Schritte in die richtige Reihenfolge. Ziehe sie dazu an die passende Stelle. Du kannst auch erst einen Schritt und dann den Platz anklicken, an den er soll.</p>
+  <a class="extern" id="extern" href="#" target="_blank" rel="noopener" hidden>Übung in eigenem Fenster öffnen</a>
+
+  <!--
+    ====== HIER ANPASSEN: Die Schritte in der RICHTIGEN Reihenfolge ======
+    - Ein Schritt pro Zeile, von oben nach unten.
+    - Beim Öffnen werden die Schritte gemischt.
+    - Eine Zeile, die mit "fest:" beginnt, bleibt immer an ihrem Platz stehen
+      (z. B. ein vorgegebener Start oder Abschluss) und wird nicht mitbewertet.
+    - Fett:   <strong>Wort</strong>     Kursiv:   <em>Wort</em>
+    - Beliebig viele Schritte möglich.
+  -->
+  <script type="text/plain" id="schritte">
+Sicherheitsüberprüfung, dazu
+Magazin entnehmen
+Verschluss zurückziehen
+Prüfen, ob Patronenlager und Rohr frei sind
+Verschluss vorschnellen lassen
+Pistole entspannen (Verschluss vorschnellen lassen)
+Zerlegebügel auf beiden Seiten von oben greifen und nach unten schieben
+Verschluss vorwärts vom Griffstück schieben
+Schließfedereinheit entfernen
+Rohr aus dem Verschluss nehmen
+fest: P99 Q ist zerlegt
+  </script>
+
+  <ol class="reihe" id="reihe" role="list" aria-label="Schritte"></ol>
+  <p class="sr-only" id="tastatur-hinweis">Mit den Pfeiltasten nach oben und unten verschiebst du den Schritt, der gerade ausgewählt ist.</p>
+
+  <div class="auswertung">
+    <p class="ergebnis" id="ergebnis" aria-live="polite"></p>
+    <div class="knoepfe">
+      <button type="button" class="primaer" id="pruefen">Reihenfolge prüfen</button>
+      <button type="button" class="sekundaer" id="loesungen" hidden>Lösung anzeigen</button>
+      <button type="button" class="sekundaer" id="neu" hidden>Von vorn beginnen</button>
+    </div>
+  </div>
+  <p class="sr-only" id="ansage" aria-live="polite"></p>
+
+</main>
+
+<script>
+  // ====== HIER ANPASSEN: Einstellungen ======
+  const EINSTELLUNGEN = {
+    loesungenAnzeigenErlaubt: true, // false = Knopf "Lösung anzeigen" erscheint nie
+    richtigeSperren: true           // true = richtig eingeordnete Schritte bleiben nach dem Prüfen an ihrem Platz
+  };
+
+  // ---------- Ab hier nichts mehr ändern nötig ----------
+  const wurzel = document.documentElement;
+  const reiheEl = document.getElementById('reihe');
+  const ergebnisEl = document.getElementById('ergebnis');
+  const ansageEl = document.getElementById('ansage');
+  const btnPruefen = document.getElementById('pruefen');
+  const btnLoesungen = document.getElementById('loesungen');
+  const btnNeu = document.getElementById('neu');
+  const wenigBewegung = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const GRIFF = '<svg viewBox="0 0 8 14" aria-hidden="true" focusable="false"><g fill="currentColor">'
+    + '<circle cx="2" cy="2" r="1.3"/><circle cx="6" cy="2" r="1.3"/><circle cx="2" cy="7" r="1.3"/>'
+    + '<circle cx="6" cy="7" r="1.3"/><circle cx="2" cy="12" r="1.3"/><circle cx="6" cy="12" r="1.3"/></g></svg>';
+  const SCHLOSS = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">'
+    + '<path d="M5 7V5a3 3 0 0 1 6 0v2" fill="none" stroke="currentColor" stroke-width="1.7"/>'
+    + '<rect x="3" y="7" width="10" height="8" rx="1.6" fill="currentColor"/></svg>';
+
+  const karten = [];  // { nr (richtiger Platz), text, el, zeichen, fest, status: 'offen'|'richtig'|'falsch'|'geloest' }
+  const plaetze = []; // <li> für Platz 1, 2, 3 …
+  let reihe = [];     // reihe[i] = Karte, die gerade auf Platz i liegt
+  let ausgewaehlt = null; // per Klick ausgewählte Karte
+
+  const gesperrt = k => k.fest || k.status === 'geloest' || (k.status === 'richtig' && EINSTELLUNGEN.richtigeSperren);
+  const freiePlaetze = () => reihe.map((k, i) => i).filter(i => !gesperrt(reihe[i]));
+  const ansage = text => { ansageEl.textContent = text; };
+
+  // ---------- Plätze und Karten aufbauen ----------
+  document.getElementById('schritte').textContent
+    .split('\n').map(z => z.trim()).filter(Boolean)
+    .forEach((zeile, i) => {
+      const fest = /^fest\s*:/i.test(zeile);
+      const inhalt = fest ? zeile.replace(/^fest\s*:\s*/i, '') : zeile;
+
+      const platz = document.createElement('li');
+      platz.className = 'platz';
+      const nr = document.createElement('span');
+      nr.className = 'nr';
+      nr.setAttribute('aria-hidden', 'true');
+      nr.textContent = i + 1;
+      platz.append(nr);
+      reiheEl.append(platz);
+      plaetze.push(platz);
+
+      const el = document.createElement(fest ? 'div' : 'button');
+      el.className = 'karte' + (fest ? ' fest' : '');
+      el.dataset.nr = i;
+      if (!fest) {
+        el.type = 'button';
+        el.setAttribute('aria-describedby', 'tastatur-hinweis');
+      }
+      const griff = document.createElement('span');
+      griff.className = 'griff';
+      griff.setAttribute('aria-hidden', 'true');
+      griff.innerHTML = fest ? SCHLOSS : GRIFF;
+      const textEl = document.createElement('span');
+      textEl.className = 'karten-text';
+      textEl.innerHTML = inhalt;
+      const zeichen = document.createElement('span');
+      zeichen.className = 'zeichen';
+      zeichen.setAttribute('aria-hidden', 'true');
+      el.append(griff, textEl, zeichen);
+      if (fest) {
+        const hinweis = document.createElement('span');
+        hinweis.className = 'sr-only';
+        hinweis.textContent = 'Fest vorgegeben: ';
+        textEl.prepend(hinweis);
+      }
+      el.addEventListener('transitionend', e => { if (e.propertyName === 'transform') el.style.transition = ''; });
+      karten.push({ nr: i, text: textEl.textContent.replace(/^Fest vorgegeben: /, '').trim(), el, zeichen, fest, status: 'offen' });
+    });
+  const beweglich = karten.filter(k => !k.fest);
+
+  // Mischen: kein Schritt steht am Anfang schon an seinem richtigen Platz
+  function mischen() {
+    const ziele = beweglich.map(k => k.nr);
+    const folge = beweglich.slice();
+    for (let versuch = 0; versuch < 500; versuch++) {
+      for (let i = folge.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [folge[i], folge[j]] = [folge[j], folge[i]];
+      }
+      if (folge.length < 2 || folge.every((k, j) => k.nr !== ziele[j])) break;
+    }
+    reihe = karten.map(k => (k.fest ? k : null));
+    ziele.forEach((p, j) => { reihe[p] = folge[j]; });
+  }
+
+  // ---------- Darstellung ----------
+  function anordnen() {
+    const fokus = document.activeElement;
+    reihe.forEach((k, i) => { if (k.el.parentNode !== plaetze[i]) plaetze[i].append(k.el); });
+    if (fokus && fokus !== document.activeElement && fokus.isConnected) fokus.focus({ preventScroll: true });
+  }
+
+  // Karten gleiten an ihren neuen Platz statt zu springen
+  function gleiten(aenderung) {
+    if (wenigBewegung) { aenderung(); return; }
+    const vorher = karten.map(k => k.el.getBoundingClientRect());
+    aenderung();
+    karten.forEach(k => { k.el.style.transition = 'none'; k.el.style.transform = ''; });
+    const nachher = karten.map(k => k.el.getBoundingClientRect());
+    const bewegt = [];
+    karten.forEach((k, i) => {
+      const dx = vorher[i].left - nachher[i].left;
+      const dy = vorher[i].top - nachher[i].top;
+      if (Math.abs(dx) < .5 && Math.abs(dy) < .5) { k.el.style.transition = ''; return; }
+      k.el.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+      bewegt.push(k);
+    });
+    if (bewegt.length === 0) return;
+    void reiheEl.offsetWidth;
+    bewegt.forEach(k => { k.el.style.transition = 'transform .2s ease'; k.el.style.transform = ''; });
+  }
+
+  function darstellen(animieren = true) {
+    if (animieren) gleiten(anordnen); else anordnen();
+    karten.forEach(k => {
+      const el = k.el;
+      el.classList.remove('richtig', 'falsch', 'geloest');
+      if (k.status !== 'offen') el.classList.add(k.status);
+      el.classList.toggle('gesperrt', gesperrt(k));
+      el.classList.toggle('ausgewaehlt', ausgewaehlt === k);
+      k.zeichen.textContent = { richtig: '✓', falsch: '✗' }[k.status] || '';
+      if (k.fest) return;
+      const zusatz = { richtig: ', richtig', falsch: ', falsch', geloest: ', Lösung' }[k.status] || '';
+      el.setAttribute('aria-label', 'Platz ' + (reihe.indexOf(k) + 1) + ': ' + k.text + zusatz);
+      el.setAttribute('aria-pressed', String(ausgewaehlt === k));
+      el.setAttribute('aria-disabled', gesperrt(k) ? 'true' : 'false');
+    });
+    wurzel.classList.toggle('auswahl-aktiv', !!ausgewaehlt);
+  }
+
+  // ---------- Karten verschieben ----------
+  // Legt die Karte auf Platz "ziel". Die anderen beweglichen Karten rücken auf,
+  // gesperrte (richtige oder feste) Karten bleiben an ihrem Platz.
+  function verschieben(karte, ziel) {
+    const frei = freiePlaetze();
+    const von = frei.indexOf(reihe.indexOf(karte));
+    const nach = frei.indexOf(ziel);
+    if (von === -1 || nach === -1 || von === nach) return false;
+    const folge = frei.map(i => reihe[i]);
+    folge.splice(von, 1);
+    folge.splice(nach, 0, karte);
+    const vorher = reihe.slice();
+    frei.forEach((p, j) => { reihe[p] = folge[j]; });
+    // Eine Markierung gilt nur für den alten Platz: verschobene Karten werden wieder neutral
+    reihe.forEach((k, i) => { if (k !== vorher[i] && !gesperrt(k)) k.status = 'offen'; });
+    return true;
+  }
+
+  function auswahlAufheben() {
+    if (!ausgewaehlt) return;
+    ausgewaehlt = null;
+    darstellen(false);
+  }
+
+  // ---------- Klicken / Tippen / Tastatur ----------
+  // Verhindert, dass nach dem Ziehen zusätzlich ein Klick ausgelöst wird
+  let klickSperreBis = 0;
+
+  function karteAngeklickt(k) {
+    if (gesperrt(k)) {
+      if (ausgewaehlt) ansage('Dieser Schritt steht bereits fest.');
+      return;
+    }
+    if (!ausgewaehlt) {
+      ausgewaehlt = k;
+      darstellen(false);
+      ansage('„' + k.text + '“ ausgewählt. Wähle jetzt den Platz, an den der Schritt soll, oder verschiebe ihn mit den Pfeiltasten.');
+      return;
+    }
+    if (ausgewaehlt === k) { auswahlAufheben(); return; }
+    const w = ausgewaehlt;
+    const ziel = reihe.indexOf(k);
+    ausgewaehlt = null;
+    verschieben(w, ziel);
+    darstellen();
+    ansage('„' + w.text + '“ auf Platz ' + (ziel + 1) + ' verschoben.');
+  }
+
+  document.addEventListener('click', e => {
+    if (performance.now() < klickSperreBis) return;
+    const el = e.target.closest('button.karte');
+    if (el) { karteAngeklickt(karten[el.dataset.nr]); return; }
+    // Klick daneben hebt die Auswahl auf
+    if (ausgewaehlt && !e.target.closest('button, a')) auswahlAufheben();
+  });
+
+  reiheEl.addEventListener('keydown', e => {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    const el = e.target.closest('button.karte');
+    if (!el) return;
+    const k = karten[el.dataset.nr];
+    if (gesperrt(k)) return;
+    e.preventDefault();
+    const frei = freiePlaetze();
+    const ziel = frei[frei.indexOf(reihe.indexOf(k)) + (e.key === 'ArrowUp' ? -1 : 1)];
+    if (ziel === undefined) return;
+    ausgewaehlt = null;
+    verschieben(k, ziel);
+    darstellen();
+    k.el.focus({ preventScroll: true });
+    if (k.el.scrollIntoView) k.el.scrollIntoView({ block: 'nearest' });
+    ansage('„' + k.text + '“ auf Platz ' + (ziel + 1) + '.');
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (zug) zugBeenden(false);
+    else auswahlAufheben();
+  });
+
+  // ---------- Ziehen und Ablegen (Maus, Finger, Stift) ----------
+  let zug = null;
+  let landung = null; // Abschluss der Lande-Animation der zuletzt gezogenen Karte
+
+  document.addEventListener('pointerdown', e => {
+    if (zug || !e.isPrimary) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const el = e.target.closest('button.karte');
+    if (!el) return;
+    const k = karten[el.dataset.nr];
+    if (gesperrt(k)) return;
+    // Auf dem Touchscreen wird am Griff gezogen, damit man über die Karten weiter scrollen kann.
+    // Passt die Übung ohne Scrollen in den Rahmen, geht es mit der ganzen Karte.
+    if (e.pointerType === 'touch' && !e.target.closest('.griff') && !wurzel.classList.contains('eingepasst')) return;
+    if (landung) landung();
+    zug = { k, id: e.pointerId, typ: e.pointerType, startX: e.clientX, startY: e.clientY, x: e.clientX, y: e.clientY, aktiv: false };
+  });
+
+  document.addEventListener('pointermove', e => {
+    if (!zug || e.pointerId !== zug.id) return;
+    zug.x = e.clientX;
+    zug.y = e.clientY;
+    if (!zug.aktiv) {
+      const schwelle = zug.typ === 'mouse' ? 5 : 8;
+      if (Math.hypot(zug.x - zug.startX, zug.y - zug.startY) < schwelle) return;
+      zugStarten();
+    }
+    e.preventDefault();
+    geistBewegen();
+    zielAktualisieren();
+  });
+
+  document.addEventListener('pointerup', e => {
+    if (!zug || e.pointerId !== zug.id) return;
+    if (zug.aktiv) { zug.x = e.clientX; zug.y = e.clientY; geistBewegen(); zielAktualisieren(); }
+    zugBeenden(true);
+  });
+  document.addEventListener('pointercancel', e => {
+    if (zug && e.pointerId === zug.id) zugBeenden(false);
+  });
+  reiheEl.addEventListener('lostpointercapture', e => {
+    if (zug && zug.aktiv && e.pointerId === zug.id && e.target === reiheEl) zugBeenden(false);
+  });
+  // Fallback für ältere Mobilbrowser: Seite nicht scrollen, während eine Karte gezogen wird
+  document.addEventListener('touchmove', e => { if (zug) e.preventDefault(); }, { passive: false });
+
+  function zugStarten() {
+    zug.aktiv = true;
+    if (ausgewaehlt) { ausgewaehlt = null; darstellen(false); }
+    // Erst jetzt einfangen (an der Liste, die beim Umsortieren an ihrem Platz bleibt),
+    // damit ein normaler Klick weiterhin auf der Karte ankommt
+    try { reiheEl.setPointerCapture(zug.id); } catch (_) {}
+    const el = zug.k.el;
+    const r = el.getBoundingClientRect();
+    const geist = document.createElement('div');
+    geist.className = 'geist';
+    geist.setAttribute('aria-hidden', 'true');
+    geist.innerHTML = el.innerHTML;
+    geist.querySelector('.zeichen').textContent = '';
+    geist.style.width = r.width + 'px';
+    geist.style.fontSize = getComputedStyle(el).fontSize;
+    document.body.append(geist);
+    zug.geist = geist;
+    zug.links = r.left; // die Karte bleibt beim Ziehen in ihrer Spalte
+    zug.offY = Math.min(Math.max(zug.startY - r.top, 0), r.height);
+    zug.gH = geist.getBoundingClientRect().height;
+    zug.ausgang = reihe.slice();
+    zug.stati = karten.map(k => k.status);
+    el.classList.add('quelle');
+    wurzel.classList.add('ziehen');
+    requestAnimationFrame(autoScrollen);
+  }
+
+  function geistBewegen() {
+    zug.geist.style.transform = 'translate(' + zug.links + 'px,' + (zug.y - zug.offY) + 'px)';
+  }
+
+  const mitte = i => { const r = plaetze[i].getBoundingClientRect(); return r.top + r.height / 2; };
+
+  // Die gezogene Karte wandert mit, sobald ihre Mitte über die Mitte eines Nachbarplatzes kommt
+  function zielAktualisieren() {
+    const y = zug.y - zug.offY + zug.gH / 2;
+    for (let n = 0; n < reihe.length; n++) {
+      const frei = freiePlaetze();
+      const j = frei.indexOf(reihe.indexOf(zug.k));
+      const oben = frei[j - 1], unten = frei[j + 1];
+      if (oben !== undefined && y < mitte(oben)) { verschieben(zug.k, oben); darstellen(); continue; }
+      if (unten !== undefined && y > mitte(unten)) { verschieben(zug.k, unten); darstellen(); continue; }
+      break;
+    }
+  }
+
+  function zugBeenden(ablegen) {
+    const z = zug;
+    zug = null;
+    if (!z || !z.aktiv) return; // war nur ein Klick bzw. Antippen
+    try { reiheEl.releasePointerCapture(z.id); } catch (_) {}
+    klickSperreBis = performance.now() + 400;
+    wurzel.classList.remove('ziehen');
+    if (!ablegen) {
+      z.geist.remove();
+      z.k.el.classList.remove('quelle');
+      reihe = z.ausgang;
+      karten.forEach((k, i) => { k.status = z.stati[i]; });
+      darstellen();
+      ansage('Verschieben abgebrochen.');
+      return;
+    }
+    const platz = reihe.indexOf(z.k);
+    if (platz !== z.ausgang.indexOf(z.k)) ansage('„' + z.k.text + '“ auf Platz ' + (platz + 1) + ' verschoben.');
+    // Gezogene Karte gleitet an ihren Platz
+    const el = z.k.el;
+    let fertig = false;
+    landung = () => {
+      if (fertig) return;
+      fertig = true;
+      landung = null;
+      z.geist.remove();
+      el.classList.remove('quelle');
+    };
+    if (wenigBewegung) { landung(); return; }
+    el.style.transition = 'none';
+    el.style.transform = '';
+    const r = el.getBoundingClientRect();
+    z.geist.style.transition = 'transform .15s ease-out, box-shadow .15s';
+    z.geist.style.boxShadow = 'none';
+    z.geist.style.transform = 'translate(' + r.left + 'px,' + r.top + 'px)';
+    z.geist.addEventListener('transitionend', landung, { once: true });
+    setTimeout(landung, 220);
+  }
+
+  // Seite scrollt mit, wenn man eine Karte an den oberen oder unteren Rand zieht
+  function autoScrollen() {
+    if (!zug || !zug.aktiv) return;
+    const zone = 60, maxTempo = 18, y = zug.y, hoehe = window.innerHeight;
+    // Ein Rand scrollt erst, wenn der Zeiger zwischendurch außerhalb dieses Randes war
+    if (y >= zone) zug.obenScharf = true;
+    if (y <= hoehe - zone) zug.untenScharf = true;
+    let tempo = 0;
+    if (zug.obenScharf && y < zone) tempo = -maxTempo * Math.min(1, (zone - y) / zone);
+    else if (zug.untenScharf && y > hoehe - zone) tempo = maxTempo * Math.min(1, (y - (hoehe - zone)) / zone);
+    if (tempo) {
+      const vorher = window.scrollY;
+      window.scrollBy(0, tempo);
+      if (window.scrollY !== vorher) zielAktualisieren();
+    }
+    requestAnimationFrame(autoScrollen);
+  }
+
+  // ---------- Auswerten ----------
+  function pruefen(perTastatur) {
+    auswahlAufheben();
+    beweglich.forEach(k => {
+      if (gesperrt(k)) return;
+      k.status = reihe.indexOf(k) === k.nr ? 'richtig' : 'falsch';
+    });
+    darstellen(false);
+
+    const gesamt = beweglich.length;
+    const richtig = beweglich.filter(k => k.status === 'richtig').length;
+    const falsche = reihe.filter(k => k.status === 'falsch');
+
+    if (falsche.length === 0) {
+      ergebnisEl.textContent = `Alle ${gesamt} Schritte stehen in der richtigen Reihenfolge. Sehr gut!`;
+      btnPruefen.hidden = true;
+      btnLoesungen.hidden = true;
+      btnNeu.hidden = false;
+      if (perTastatur) btnNeu.focus();
+      return;
+    }
+
+    ergebnisEl.textContent = `${richtig} von ${gesamt} Schritten ${richtig === 1 ? 'steht' : 'stehen'} an der richtigen Stelle. `
+      + 'Verschiebe die rot markierten Schritte und prüfe dann erneut.';
+    btnPruefen.textContent = 'Erneut prüfen';
+    btnLoesungen.hidden = !EINSTELLUNGEN.loesungenAnzeigenErlaubt;
+    btnNeu.hidden = false;
+    if (perTastatur) falsche[0].el.focus();
+  }
+
+  function loesungenAnzeigen() {
+    ausgewaehlt = null;
+    beweglich.forEach(k => { if (k.status !== 'richtig') k.status = 'geloest'; });
+    reihe = karten.slice();
+    darstellen();
+    const richtig = beweglich.filter(k => k.status === 'richtig').length;
+    ergebnisEl.textContent = `${richtig} von ${beweglich.length} Schritten selbst richtig eingeordnet. Die gelb markierten Schritte zeigen die Lösung.`;
+    btnPruefen.hidden = true;
+    btnLoesungen.hidden = true;
+    btnNeu.hidden = false;
+  }
+
+  function neuBeginnen() {
+    ausgewaehlt = null;
+    karten.forEach(k => { k.status = 'offen'; });
+    mischen();
+    darstellen();
+    ergebnisEl.textContent = '';
+    btnPruefen.textContent = 'Reihenfolge prüfen';
+    btnPruefen.hidden = false;
+    btnLoesungen.hidden = true;
+    btnNeu.hidden = true;
+  }
+
+  // Auf dem Handy innerhalb von Genially: Link zum Öffnen in eigenem Fenster anzeigen
+  (function () {
+    const eingebettet = window.self !== window.top;
+    const kleinerBildschirm = Math.min(screen.width, screen.height) < 600;
+    if (eingebettet && kleinerBildschirm) {
+      const link = document.getElementById('extern');
+      link.href = location.href;
+      link.hidden = false;
+    }
+  })();
+
+  btnPruefen.addEventListener('click', e => pruefen(e.detail === 0));
+  btnLoesungen.addEventListener('click', loesungenAnzeigen);
+  btnNeu.addEventListener('click', neuBeginnen);
+
+  mischen();
+  darstellen(false);
+</script>
+<!-- =====================================================================
+     EINPASSEN: Die Übung füllt ihren Rahmen (z. B. in Genially) möglichst
+     ohne Scrollen. Die Schrift – und damit alles, was in rem angegeben ist –
+     wird so groß gewählt, wie es die Höhe UND die Breite des Rahmens erlauben.
+     Bei breiten Rahmen dürfen die Begriffe rechts neben Text bzw. Bild stehen.
+     Passt die Übung selbst bei kleinster Schrift nicht (z. B. Handy),
+     wird wie bisher gescrollt.
+     Einbau: diesen ganzen Block ganz unten einfügen, direkt vor dem schließenden body-Tag.
+     ===================================================================== -->
+<style>
+  /* Im eingepassten Zustand etwas weniger Rand, damit mehr Platz für die Übung bleibt */
+  html.einpassen body { padding: clamp(10px, 3.5vh, 36px) clamp(14px, 3.5vw, 40px); }
+  html.eingepasst .wortauswahl.fixiert { max-height: none; overflow: visible; }
+  /* Fotos (Bildvergleich): Höhe in rem statt nach Bildschirmhöhe, damit sie beim Einpassen mitwachsen */
+  html.eingepasst { --bild-hoehe: 12rem; }
+
+  /* Rückmeldung neben den Knöpfen statt darüber – spart eine Zeile Höhe */
+  html.einpassen .auswertung { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.25rem; margin-top: 1.1rem; padding-top: .9rem; }
+  html.einpassen .auswertung .knoepfe { order: 1; }
+  html.einpassen .auswertung .ergebnis { order: 2; flex: 1 1 18rem; margin: 0; }
+
+  /* Breiter Rahmen: Begriffe rechts neben Text bzw. Bild */
+  main.seitlich {
+    display: grid;
+    grid-template-columns: minmax(0, max-content) minmax(11rem, 17rem);
+    justify-content: center;
+    column-gap: clamp(1rem, 2.5vw, 2.25rem);
+    grid-auto-flow: row dense;
+    align-items: start;
+  }
+  main.seitlich > * { grid-column: 1 / -1; }
+  main.seitlich > .text,
+  main.seitlich > .bild { grid-column: 1; }
+  main.seitlich > .wortauswahl { grid-column: 2; margin: 0; }
+  main.seitlich > .wortauswahl.fixiert { position: static; box-shadow: none; }
+</style>
+<script>
+  // ====== HIER ANPASSEN: Einpassen in den Rahmen ======
+  const EINPASSEN = {
+    aktiv: true,     // false = wie früher: Schrift richtet sich nur nach der Breite, Höhe egal
+    minSchrift: 13,  // px – kleiner wird die Schrift nie. Passt es dann noch nicht, wird gescrollt.
+    minSchriftImRahmen: 11, // px – dasselbe, wenn die Übung eingebettet ist (Genially vergrößert
+                            //      die ganze Seite beim Anzeigen ohnehin auf Bildschirmgröße)
+    maxSchrift: 30,  // px – größer wird die Schrift nie (bei sehr großen Rahmen)
+    seitlich: true   // true = bei breiten Rahmen dürfen die Begriffe rechts neben Text/Bild stehen
+  };
+
+  // ---------- Ab hier nichts mehr ändern nötig ----------
+  (function () {
+    if (!EINPASSEN.aktiv) return;
+    const html = document.documentElement;
+    const main = document.querySelector('main');
+    if (!main) return;
+    html.classList.add('einpassen');
+
+    // Welche Anordnungen ausprobiert werden (Klassen an <main>). Eine Übung kann eigene
+    // Varianten vorgeben (window.einpassenVarianten) und eine Zusatzprüfung (window.einpassenPruefen).
+    let varianten = window.einpassenVarianten || [[], ['seitlich']];
+    if (!EINPASSEN.seitlich || !main.querySelector(':scope > .wortauswahl')) {
+      varianten = varianten.filter(v => !v.includes('seitlich'));
+    }
+    if (varianten.length === 0) varianten = [[]];
+    const alleKlassen = [...new Set(varianten.flat())];
+    // Platzhalter für die Rückmeldung nach dem Prüfen – damit später nichts überläuft
+    const PLATZHALTER = '10 von 12 richtig. Tausche die rot markierten Antworten aus, fülle die 2 leeren Stellen und prüfe dann noch einmal.';
+
+    let laeuft = false, nachholen = false, geplant = false;
+
+    // Passt alles in den Rahmen? Beim Suchen mit etwas Reserve, damit später nichts knapp überläuft.
+    const unterkante = () => main.getBoundingClientRect().bottom + window.scrollY
+      + parseFloat(getComputedStyle(document.body).paddingBottom);
+    const passt = (reserve = 6) => unterkante() <= window.innerHeight - reserve
+      && html.scrollWidth <= window.innerWidth + 1;
+    const ziehtGerade = () => html.classList.contains('ziehen') || document.body.classList.contains('zieht');
+
+    function setzen(px, v) {
+      html.style.fontSize = px + 'px';
+      alleKlassen.forEach(k => main.classList.toggle(k, v.includes(k)));
+    }
+
+    function einpassen() {
+      if (ziehtGerade()) { nachholen = true; return; }
+      laeuft = true;
+      const breite = window.innerWidth;
+      const eingebettet = window.self !== window.top;
+      const normal = Math.min(22, Math.max(15, 0.009 * breite + 9)); // bisherige Größe nach Breite
+      const minimum = eingebettet ? EINPASSEN.minSchriftImRahmen : EINPASSEN.minSchrift;
+      const unten = breite < 600 ? normal : Math.min(minimum, normal);
+      const oben = Math.max(unten, Math.min(EINPASSEN.maxSchrift, Math.max(normal, breite / 40)));
+
+      // Spätere Inhalte schon mit einplanen: Rückmeldung und alle Knöpfe
+      const ergebnis = document.getElementById('ergebnis');
+      let probe = null;
+      if (ergebnis && !ergebnis.textContent.trim()) {
+        probe = ergebnis.cloneNode(false);
+        probe.removeAttribute('id');
+        probe.removeAttribute('aria-live');
+        probe.setAttribute('aria-hidden', 'true');
+        probe.textContent = PLATZHALTER;
+        ergebnis.after(probe);
+      }
+      const versteckt = [...document.querySelectorAll('.knoepfe [hidden]')];
+      versteckt.forEach(b => { b.hidden = false; });
+      html.classList.add('eingepasst');
+      const x = window.scrollX, y = window.scrollY;
+
+      let beste = null;
+      varianten.forEach(v => {
+        setzen(unten, v);
+        if (!passt()) return;
+        let lo = unten, hi = oben;
+        setzen(hi, v);
+        if (passt()) lo = hi;
+        else {
+          while (hi - lo > 0.2) {
+            const mitte = (lo + hi) / 2;
+            setzen(mitte, v);
+            if (passt()) lo = mitte; else hi = mitte;
+          }
+        }
+        setzen(lo, v);
+        // Zusatzprüfung der Übung (z. B. Beschriftungen im Bild lesbar). Schlägt sie fehl,
+        // die größte kleinere Schrift suchen, bei der beides erfüllt ist.
+        const pruefung = window.einpassenPruefen;
+        if (typeof pruefung === 'function' && !pruefung()) {
+          const beides = () => passt() && pruefung();
+          setzen(unten, v);
+          if (!beides()) return;
+          let gut = unten, schlecht = lo;
+          while (schlecht - gut > 0.2) {
+            const mitte = (gut + schlecht) / 2;
+            setzen(mitte, v);
+            if (beides()) gut = mitte; else schlecht = mitte;
+          }
+          lo = gut;
+        }
+        // Eine spätere Anordnung wird nur genommen, wenn sie deutlich größere Schrift erlaubt
+        if (!beste || lo > beste.px * 1.08) beste = { px: lo, v };
+      });
+
+      if (probe) probe.remove();
+      versteckt.forEach(b => { b.hidden = true; });
+      if (beste) {
+        setzen(beste.px, beste.v);
+      } else {
+        // Passt nirgends: es wird gescrollt. Im eingebetteten Rahmen mit kleiner Schrift
+        // (möglichst wenig scrollen), sonst (z. B. Handy) in normaler Größe.
+        html.classList.remove('eingepasst');
+        setzen(normal, []);
+        html.style.fontSize = (eingebettet && breite >= 600) ? unten + 'px' : '';
+      }
+      window.scrollTo(x, y);
+      laeuft = false;
+    }
+
+    function planen() {
+      if (geplant) return;
+      geplant = true;
+      requestAnimationFrame(() => { geplant = false; einpassen(); });
+    }
+
+    window.addEventListener('resize', planen);
+    window.addEventListener('load', planen);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(planen);
+    // Wird der Inhalt später doch größer (z. B. ein langes Wort in einer Lücke), neu einpassen
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(() => {
+        if (!laeuft && html.classList.contains('eingepasst') && !passt(0)) planen();
+      }).observe(main);
+    }
+    // Während gezogen wird, nichts verschieben – erst danach
+    document.addEventListener('pointerup', () => { if (nachholen) { nachholen = false; setTimeout(planen, 0); } });
+    document.addEventListener('pointercancel', () => { if (nachholen) { nachholen = false; setTimeout(planen, 0); } });
+    einpassen();
+  })();
+</script>
+</body>
+</html>
