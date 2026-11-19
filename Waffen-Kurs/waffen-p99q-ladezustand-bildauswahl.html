@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ladezustand der WALTHER P99 Q</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<script>if (window.self !== window.top) document.documentElement.classList.add('eingebettet');</script>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #161B22;              /* Hintergrund, wenn die Übung direkt im Browser geöffnet wird */
+    --bg-im-rahmen: transparent; /* Hintergrund, wenn die Übung in Genially eingebettet ist */
+    --max-breite: none;         /* none = volle Breite des Rahmens; z. B. 46rem = schmalerer Block */
+    --bild-hoehe: clamp(8rem, 28vh, 13rem); /* Höhe der Fotos */
+    --bild-verhaeltnis: 1.8;    /* Seitenverhältnis der Fotos (Breite geteilt durch Höhe) */
+    --bild-ausschnitt: 85% 50%; /* Weicht ein Foto davon ab, bleibt dieser Teil sichtbar:
+                                   85% = eher rechts, also das hintere Ende der Pistole.
+                                   In der Vergrößerung ist immer das ganze Foto zu sehen. */
+    --ink: #E6EBF0;
+    --muted: #9AA7B3;
+    --line: #2E3843;
+    --field: #212933;
+    --field-line: #3D4957;
+    --chip: #2B3541;            /* Antwortknöpfe */
+    --accent: #5BB8C4;
+    --accent-bg: rgba(91, 184, 196, .18);
+    --ok: #7EDDA3;   --ok-bg: rgba(92, 201, 138, .14);
+    --bad: #FF8F84;  --bad-bg: rgba(240, 122, 110, .15);
+    --sol: #F0CD6E;  --sol-bg: rgba(232, 193, 90, .14);
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  /* Schriftgröße wächst mit der Breite des Rahmens mit */
+  html { font-size: clamp(15px, 0.9vw + 9px, 22px); }
+  html.eingebettet, html.eingebettet body { background: var(--bg-im-rahmen); }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  body { padding: clamp(16px, 4vw, 40px); }
+  main { max-width: var(--max-breite); margin: 0 auto; }
+
+  h1 { font-size: 1.5rem; line-height: 1.25; margin: 0 0 .4rem; font-weight: 700; letter-spacing: .005em; }
+  .anleitung { color: var(--muted); margin: 0 0 1.25rem; line-height: 1.5; }
+
+  /* ---------- Die vier Bilder ---------- */
+  .fragen {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: minmax(0, max-content);
+    justify-content: center;
+    gap: .9rem 1rem;
+  }
+  /* Breiter Rahmen: zwei Bilder nebeneinander (wird beim Einpassen automatisch gewählt) */
+  main.raster .fragen { grid-template-columns: repeat(2, minmax(0, max-content)); }
+
+  .frage {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .8rem 1.25rem;
+    padding: .9rem;
+    background: var(--field);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    outline: 2px solid transparent;
+    outline-offset: -2px;
+    transition: outline-color .2s;
+  }
+  .frage.hinweis { outline-color: var(--accent); }
+
+  /* Foto – ein Klick vergrößert es */
+  .bild {
+    position: relative;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    border-radius: 6px;
+    cursor: zoom-in;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .bild img {
+    display: block;
+    width: calc(var(--bild-hoehe) * var(--bild-verhaeltnis));
+    max-width: 100%;
+    height: auto;
+    aspect-ratio: var(--bild-verhaeltnis);
+    object-fit: cover;
+    object-position: var(--bild-ausschnitt);
+    border-radius: 6px;
+    background: var(--chip);
+  }
+  .bild:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .marke, .lupe {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ink);
+    background: rgba(13, 17, 23, .78);
+    pointer-events: none;
+  }
+  .marke { top: .45rem; left: .45rem; padding: .1rem .5rem; font-size: .85rem; font-weight: 700; line-height: 1.4; border-radius: 4px; }
+  .lupe { right: .45rem; bottom: .45rem; width: 1.8rem; height: 1.8rem; border-radius: 50%; transition: background-color .15s; }
+  .lupe svg { width: 1rem; height: 1rem; display: block; }
+  .bild:hover .lupe { background: var(--accent); color: #0D1F23; }
+  /* Falls ein Bild nicht gefunden wird, steht hier der gesuchte Dateiname */
+  .bild.kaputt { cursor: default; }
+  .bild.kaputt img, .bild.kaputt .marke, .bild.kaputt .lupe { display: none; }
+  .bild.kaputt::after {
+    content: "Bild nicht gefunden: " attr(data-datei);
+    display: flex;
+    align-items: center;
+    width: calc(var(--bild-hoehe) * var(--bild-verhaeltnis));
+    max-width: 100%;
+    aspect-ratio: var(--bild-verhaeltnis);
+    padding: 1rem;
+    font-size: .9rem;
+    text-align: left;
+    color: var(--bad);
+    border: 1px dashed var(--bad);
+    border-radius: 6px;
+  }
+
+  /* Antwortknöpfe untereinander, rechts neben dem Foto */
+  .optionen { flex: 1 1 12rem; display: flex; flex-direction: column; gap: .45rem; }
+  .option {
+    font: inherit;
+    font-size: 1rem;
+    line-height: 1.35;
+    color: var(--ink);
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .6rem;
+    padding: .45rem .8rem;
+    text-align: left;
+    background: var(--chip);
+    border: 1px solid var(--field-line);
+    border-radius: 6px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color .15s, border-color .15s, color .15s, opacity .15s;
+  }
+  html.eingepasst .option { white-space: nowrap; }
+  .option:not(.gesperrt):hover { border-color: var(--accent); }
+  .option.gewaehlt { background: var(--accent-bg); border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+  .option.richtig  { background: var(--ok-bg);  border: 1px solid var(--ok);  color: var(--ok); }
+  .option.falsch   { background: var(--bad-bg); border: 1px solid var(--bad); color: var(--bad); }
+  .option.geloest  { background: var(--sol-bg); border: 1px dashed var(--sol); color: var(--sol); }
+  .option.gesperrt { cursor: default; }
+  .option.gesperrt:not(.richtig):not(.falsch):not(.geloest) { opacity: .4; }
+  .option:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  /* Platz für ✓ / ✗ ist immer reserviert, damit die Knöpfe beim Prüfen nicht breiter werden */
+  .zeichen { flex: none; width: 1em; text-align: center; font-weight: 700; }
+
+  .merksatz {
+    margin: 1.1rem 0 0;
+    padding: .8rem 1rem;
+    border-left: 3px solid var(--accent);
+    background: var(--accent-bg);
+    border-radius: 0 8px 8px 0;
+    line-height: 1.5;
+  }
+  .merksatz strong { display: block; margin-bottom: .2rem; }
+
+  /* ---------- Vergrößerung ---------- */
+  .gross {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .6rem;
+    padding: 2.6rem clamp(10px, 3vw, 32px) 1rem;
+    background: rgba(13, 17, 23, .97);
+    font-size: clamp(13px, 1.4vmin + 6px, 18px);
+  }
+  .gross-titel { position: absolute; top: .7rem; left: clamp(10px, 3vw, 32px); margin: 0; font-weight: 700; }
+  .gross-buehne { position: relative; overflow: hidden; max-width: 100%; border-radius: 6px; line-height: 0; }
+  .gross-buehne img {
+    display: block;
+    max-width: 100%;
+    max-height: calc(100vh - 6.5em);
+    width: auto;
+    height: auto;
+    cursor: zoom-in;
+    transition: transform .2s ease;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+  .gross.zoom .gross-buehne img { transform: scale(2.6); cursor: zoom-out; touch-action: none; }
+  .gross-hinweis { margin: 0; color: var(--muted); text-align: center; line-height: 1.4; }
+  .gross-zu {
+    position: absolute;
+    top: .45rem;
+    right: clamp(10px, 3vw, 32px);
+    width: 2.2em;
+    height: 2.2em;
+    font: inherit;
+    font-size: 1.1em;
+    line-height: 1;
+    color: var(--ink);
+    background: var(--chip);
+    border: 1px solid var(--field-line);
+    border-radius: 50%;
+    cursor: pointer;
+  }
+  .gross-zu:hover { border-color: var(--accent); }
+  .gross-zu:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- Wie bei den anderen Übungen ---------- */
+  .extern { display: inline-block; margin: 0 0 1.5rem; color: var(--accent); font-weight: 700; text-underline-offset: 3px; }
+  .extern:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 2px; }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+  .auswertung { margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+  .ergebnis { margin: 0 0 1rem; font-size: 1.05rem; line-height: 1.5; }
+  .ergebnis:empty { display: none; }
+  .knoepfe { display: flex; flex-wrap: wrap; gap: .6rem; }
+
+  .knoepfe button {
+    font: inherit;
+    font-size: 1rem;
+    padding: .6rem 1.1rem;
+    border-radius: 6px;
+    border: 1px solid var(--accent);
+    cursor: pointer;
+    transition: background-color .15s, color .15s, opacity .15s;
+  }
+  .primaer   { background: var(--accent); color: #0D1F23; font-weight: 700; }
+  .primaer:hover { background: #74C8D3; border-color: #74C8D3; }
+  .sekundaer { background: transparent; color: var(--accent); }
+  .sekundaer:hover { background: rgba(91, 184, 196, .12); }
+  /* Solange noch nicht alle Bilder eine Antwort haben, wirkt "Prüfen" blass */
+  .knoepfe button.unvollstaendig { opacity: .5; }
+  .knoepfe button:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .option, .frage, .lupe, .gross-buehne img, .knoepfe button { transition: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+  <!-- ====== HIER ANPASSEN: Überschrift und Arbeitsanweisung ====== -->
+  <h1>Ladezustand der WALTHER P99 Q</h1>
+  <p class="anleitung">In welchem Zustand ist die Pistole? Wähle für jedes der vier Bilder eine Antwort und prüfe dann alle zusammen. Mit einem Klick auf ein Bild vergrößerst du es.</p>
+  <a class="extern" id="extern" href="#" target="_blank" rel="noopener" hidden>Übung in eigenem Fenster öffnen</a>
+
+  <ol class="fragen" id="fragen" role="list"></ol>
+  <p class="merksatz" id="merksatz" hidden></p>
+
+  <div class="auswertung">
+    <p class="ergebnis" id="ergebnis" aria-live="polite"></p>
+    <div class="knoepfe">
+      <button type="button" class="primaer" id="pruefen">Antworten prüfen</button>
+      <button type="button" class="sekundaer" id="loesungen" hidden>Lösung anzeigen</button>
+      <button type="button" class="sekundaer" id="neu" hidden>Von vorn beginnen</button>
+    </div>
+  </div>
+  <p class="sr-only" id="ansage" aria-live="polite"></p>
+
+</main>
+
+<!-- Vergrößerte Ansicht eines Fotos -->
+<div class="gross" id="gross" role="dialog" aria-modal="true" aria-labelledby="gross-titel" hidden>
+  <p class="gross-titel" id="gross-titel"></p>
+  <button type="button" class="gross-zu" id="gross-zu" aria-label="Vergrößerung schließen">✕</button>
+  <div class="gross-buehne"><img id="gross-bild" alt="" draggable="false"></div>
+  <p class="gross-hinweis">Klick ins Bild: Lupe an oder aus. Schließen mit ✕, Esc oder einem Klick daneben.</p>
+</div>
+
+<script>
+  // ====== HIER ANPASSEN: Inhalte ======
+
+  // Antwortknöpfe neben jedem Bild, immer in dieser Reihenfolge
+  const ANTWORTEN = [
+    'Entladen und teilgespannt',
+    'Entladen und entspannt',
+    'Geladen und entspannt',
+    'Geladen und teilgespannt'
+  ];
+
+  // Die Bilder in der Reihenfolge der Übung, je mit der richtigen Antwort
+  // (genau so geschrieben wie oben bei ANTWORTEN).
+  // Die Bilder liegen im selben Ordner wie diese HTML-Datei.
+  const BILDER = [
+    // Hieß vorher „1_Entladen_und_entspannt“ – auf dem Foto ist aber das rot markierte
+    // Schlagbolzenende hinten an der Verschlusskappe zu sehen, also teilgespannt. Bitte prüfen.
+    { bild: 'waffen-p99q-ladezustand-1.jpg', loesung: 'Entladen und teilgespannt' },
+    { bild: 'waffen-p99q-ladezustand-2.jpg', loesung: 'Geladen und teilgespannt' },
+    { bild: 'waffen-p99q-ladezustand-3.jpg', loesung: 'Entladen und entspannt' },
+    { bild: 'waffen-p99q-ladezustand-4.jpg', loesung: 'Geladen und entspannt' }
+  ];
+
+  // Merksatz, der erscheint, sobald alles gelöst ist ('' = kein Merksatz)
+  const MERKSATZ = '';
+
+  // ====== HIER ANPASSEN: Einstellungen ======
+  const EINSTELLUNGEN = {
+    loesungenAnzeigenErlaubt: true, // false = Knopf "Lösung anzeigen" erscheint nie
+    nurEinVersuch: false,           // true = beim Prüfen wird sofort aufgelöst: falsche Antworten rot,
+                                    //        die richtige gelb – kein zweiter Versuch
+    bilderMischen: false            // true = die Bilder erscheinen in zufälliger Reihenfolge
+  };
+
+  // ---------- Ab hier nichts mehr ändern nötig ----------
+  // Beim Einpassen ausprobieren: Bilder untereinander oder zwei nebeneinander
+  window.einpassenVarianten = [[], ['raster']];
+
+  const mainEl = document.querySelector('main');
+  const fragenEl = document.getElementById('fragen');
+  const merksatzEl = document.getElementById('merksatz');
+  const ergebnisEl = document.getElementById('ergebnis');
+  const ansageEl = document.getElementById('ansage');
+  const btnPruefen = document.getElementById('pruefen');
+  const btnLoesungen = document.getElementById('loesungen');
+  const btnNeu = document.getElementById('neu');
+  const grossEl = document.getElementById('gross');
+  const grossTitel = document.getElementById('gross-titel');
+  const grossBild = document.getElementById('gross-bild');
+  const grossZu = document.getElementById('gross-zu');
+
+  const LUPE = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">'
+    + '<circle cx="6.8" cy="6.8" r="4.6"/><path d="M10.3 10.3 14.5 14.5M6.8 4.7v4.2M4.7 6.8h4.2"/></svg>';
+
+  const fragen = []; // { nr, bild, loesung, wahl, status: 'offen'|'richtig'|'falsch'|'geloest', ersterVersuch, el, … }
+  let geprueft = false;
+
+  const gesperrt = f => f.status === 'richtig' || f.status === 'geloest';
+  const fertig = () => fragen.every(gesperrt);
+  const ansage = text => { ansageEl.textContent = text; };
+  const neuEinpassen = () => window.dispatchEvent(new Event('resize'));
+  const element = (tag, klasse, text) => {
+    const el = document.createElement(tag);
+    if (klasse) el.className = klasse;
+    if (text !== undefined) el.textContent = text;
+    return el;
+  };
+  function mischen(liste) {
+    for (let i = liste.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [liste[i], liste[j]] = [liste[j], liste[i]];
+    }
+    return liste;
+  }
+
+  // ---------- Bilder und Antwortknöpfe aufbauen ----------
+  function frageErzeugen(eintrag) {
+    if (!ANTWORTEN.includes(eintrag.loesung)) {
+      console.warn('Lösung "' + eintrag.loesung + '" bei ' + eintrag.bild + ' ist keine der ANTWORTEN.');
+    }
+    const el = element('li', 'frage');
+
+    const bildKnopf = element('button', 'bild');
+    bildKnopf.type = 'button';
+    const img = element('img');
+    img.decoding = 'async';
+    img.addEventListener('error', () => { bildKnopf.classList.add('kaputt'); bildKnopf.dataset.datei = eintrag.bild; });
+    img.src = encodeURI(eintrag.bild);
+    const marke = element('span', 'marke');
+    marke.setAttribute('aria-hidden', 'true');
+    const lupe = element('span', 'lupe');
+    lupe.setAttribute('aria-hidden', 'true');
+    lupe.innerHTML = LUPE;
+    bildKnopf.append(img, marke, lupe);
+
+    const gruppe = element('div', 'optionen');
+    gruppe.setAttribute('role', 'group');
+    const knoepfe = {};
+    ANTWORTEN.forEach(antwort => {
+      const b = element('button', 'option');
+      b.type = 'button';
+      b.dataset.antwort = antwort;
+      const zeichen = element('span', 'zeichen');
+      zeichen.setAttribute('aria-hidden', 'true');
+      b.append(element('span', '', antwort), zeichen);
+      gruppe.append(b);
+      knoepfe[antwort] = { el: b, zeichen };
+    });
+    el.append(bildKnopf, gruppe);
+
+    const f = { nr: 0, bild: eintrag.bild, loesung: eintrag.loesung, wahl: null, status: 'offen',
+                ersterVersuch: null, el, bildKnopf, img, marke, gruppe, knoepfe };
+    bildKnopf.addEventListener('click', () => { if (!bildKnopf.classList.contains('kaputt')) grossOeffnen(f); });
+    gruppe.addEventListener('click', e => {
+      const b = e.target.closest('.option');
+      if (b) waehlen(f, b.dataset.antwort);
+    });
+    return f;
+  }
+
+  // Reihenfolge festlegen und die Bilder durchnummerieren
+  function ordnen() {
+    const folge = EINSTELLUNGEN.bilderMischen ? mischen(fragen.slice()) : fragen.slice();
+    folge.forEach((f, i) => {
+      f.nr = i + 1;
+      f.marke.textContent = f.nr;
+      f.img.alt = 'Bild ' + f.nr + ': WALTHER P99 Q, Blick von schräg hinten auf den Verschluss';
+      f.bildKnopf.setAttribute('aria-label', 'Bild ' + f.nr + ' vergrößern');
+      f.gruppe.setAttribute('aria-label', 'Bild ' + f.nr + ': Zustand der Pistole');
+      fragenEl.append(f.el);
+    });
+  }
+
+  BILDER.forEach(eintrag => fragen.push(frageErzeugen(eintrag)));
+  ordnen();
+  if (MERKSATZ) merksatzEl.append(element('strong', '', 'Merksatz'), document.createTextNode(MERKSATZ));
+
+  // ---------- Darstellung ----------
+  function frageDarstellen(f) {
+    const zu = gesperrt(f);
+    ANTWORTEN.forEach(antwort => {
+      const { el, zeichen } = f.knoepfe[antwort];
+      const gewaehlt = f.wahl === antwort;
+      let klasse = '', zeichenText = '', zusatz = '';
+      if (gewaehlt && f.status === 'offen') klasse = 'gewaehlt';
+      else if (gewaehlt && f.status === 'richtig') { klasse = 'richtig'; zeichenText = '✓'; zusatz = ', richtig'; }
+      else if (gewaehlt && antwort !== f.loesung) { klasse = 'falsch'; zeichenText = '✗'; zusatz = ', falsch'; }
+      if (f.status === 'geloest' && antwort === f.loesung) { klasse = 'geloest'; zusatz = ', richtige Antwort'; }
+      el.className = 'option' + (klasse ? ' ' + klasse : '') + (zu ? ' gesperrt' : '');
+      zeichen.textContent = zeichenText;
+      el.setAttribute('aria-label', antwort + zusatz);
+      el.setAttribute('aria-pressed', String(gewaehlt));
+      el.setAttribute('aria-disabled', String(zu));
+    });
+  }
+
+  let merksatzVorher = false;
+  function steuerungAktualisieren() {
+    const alles = fertig();
+    btnPruefen.hidden = alles;
+    btnPruefen.textContent = geprueft ? 'Erneut prüfen' : 'Antworten prüfen';
+    btnPruefen.classList.toggle('unvollstaendig', fragen.some(f => !gesperrt(f) && !f.wahl));
+    btnLoesungen.hidden = !EINSTELLUNGEN.loesungenAnzeigenErlaubt || EINSTELLUNGEN.nurEinVersuch || !geprueft || alles;
+    btnNeu.hidden = !geprueft;
+    btnNeu.className = alles ? 'primaer' : 'sekundaer';
+    const merksatzAn = alles && !!MERKSATZ;
+    merksatzEl.hidden = !merksatzAn;
+    if (merksatzAn !== merksatzVorher) { merksatzVorher = merksatzAn; neuEinpassen(); }
+  }
+
+  function darstellen() {
+    fragen.forEach(frageDarstellen);
+    steuerungAktualisieren();
+  }
+
+  // ---------- Antwort wählen ----------
+  function waehlen(f, antwort) {
+    if (gesperrt(f) || f.wahl === antwort) return;
+    f.wahl = antwort;
+    if (f.status === 'falsch') f.status = 'offen'; // rot markierte Antwort wird geändert
+    f.el.classList.remove('hinweis');
+    frageDarstellen(f);
+    steuerungAktualisieren();
+  }
+
+  // ---------- Prüfen ----------
+  function abschlussText() {
+    const n = fragen.length;
+    const erste = fragen.filter(f => f.ersterVersuch).length;
+    if (erste === n) return 'Alle ' + n + ' Zustände richtig erkannt. Sehr gut!';
+    if (fragen.some(f => f.status === 'geloest')) {
+      return erste + ' von ' + n + ' beim ersten Versuch richtig erkannt. Gelb markiert ist jeweils die richtige Antwort.';
+    }
+    return 'Jetzt stimmen alle ' + n + ' Antworten. Beim ersten Versuch richtig: ' + erste + ' von ' + n + '.';
+  }
+
+  function pruefen(perTastatur) {
+    const offen = fragen.filter(f => !gesperrt(f));
+    const ohneAntwort = offen.filter(f => !f.wahl);
+    if (ohneAntwort.length) {
+      ohneAntwort.forEach(f => f.el.classList.add('hinweis'));
+      ergebnisEl.textContent = ohneAntwort.length === 1
+        ? 'Wähle zuerst auch für Bild ' + ohneAntwort[0].nr + ' eine Antwort.'
+        : 'Wähle zuerst für jedes Bild eine Antwort – noch ' + ohneAntwort.length + ' offen.';
+      if (perTastatur) ohneAntwort.sort((a, b) => a.nr - b.nr)[0].knoepfe[ANTWORTEN[0]].el.focus();
+      return;
+    }
+
+    offen.forEach(f => {
+      const ok = f.wahl === f.loesung;
+      if (f.ersterVersuch === null) f.ersterVersuch = ok;
+      f.status = ok ? 'richtig' : (EINSTELLUNGEN.nurEinVersuch ? 'geloest' : 'falsch');
+    });
+    geprueft = true;
+    darstellen();
+
+    const falsche = fragen.filter(f => f.status === 'falsch').sort((a, b) => a.nr - b.nr);
+    if (falsche.length === 0) {
+      ergebnisEl.textContent = abschlussText();
+      if (perTastatur) btnNeu.focus();
+      return;
+    }
+    const richtig = fragen.filter(f => f.status === 'richtig').length;
+    let satz = richtig + ' von ' + fragen.length + ' richtig. '
+      + (falsche.length === 1 ? 'Ändere die rot markierte Antwort und prüfe erneut' : 'Ändere die rot markierten Antworten und prüfe erneut');
+    satz += EINSTELLUNGEN.loesungenAnzeigenErlaubt ? ' – oder lass dir die Lösung anzeigen.' : '.';
+    ergebnisEl.textContent = satz;
+    if (perTastatur) falsche[0].knoepfe[falsche[0].wahl].el.focus();
+  }
+
+  function loesungAnzeigen() {
+    fragen.forEach(f => {
+      if (gesperrt(f)) return;
+      if (f.ersterVersuch === null) f.ersterVersuch = false;
+      f.status = f.wahl === f.loesung ? 'richtig' : 'geloest';
+    });
+    darstellen();
+    ergebnisEl.textContent = abschlussText();
+  }
+
+  function neuBeginnen(perTastatur) {
+    fragen.forEach(f => {
+      f.wahl = null;
+      f.status = 'offen';
+      f.ersterVersuch = null;
+      f.el.classList.remove('hinweis');
+    });
+    geprueft = false;
+    if (EINSTELLUNGEN.bilderMischen) ordnen();
+    ergebnisEl.textContent = '';
+    darstellen();
+    window.scrollTo(0, 0);
+    ansage('Neu begonnen. Alle Antworten sind zurückgesetzt.');
+    const erste = fragen.slice().sort((a, b) => a.nr - b.nr)[0];
+    if (perTastatur && erste) erste.knoepfe[ANTWORTEN[0]].el.focus();
+  }
+
+  // ---------- Vergrößerung ----------
+  let letzterFokus = null;
+  let druck = null; // Zeiger gedrückt: Startpunkt, um Ziehen von Klicken zu unterscheiden
+
+  function grossOeffnen(f) {
+    letzterFokus = document.activeElement;
+    grossBild.src = f.img.src;
+    grossBild.alt = f.img.alt;
+    grossTitel.textContent = 'Bild ' + f.nr;
+    lupeSetzen(false);
+    grossEl.hidden = false;
+    mainEl.inert = true;
+    grossZu.focus();
+  }
+
+  function grossSchliessen() {
+    if (grossEl.hidden) return;
+    grossEl.hidden = true;
+    mainEl.inert = false;
+    lupeSetzen(false);
+    if (letzterFokus && letzterFokus.isConnected) letzterFokus.focus({ preventScroll: true });
+  }
+
+  // Die Lupe vergrößert an der Stelle, auf die gezeigt wird
+  function lupeSetzen(an, x, y) {
+    grossEl.classList.toggle('zoom', an);
+    if (an) lupeVerschieben(x, y);
+  }
+  function lupeVerschieben(x, y) {
+    const r = grossBild.parentNode.getBoundingClientRect();
+    const px = Math.min(100, Math.max(0, (x - r.left) / r.width * 100));
+    const py = Math.min(100, Math.max(0, (y - r.top) / r.height * 100));
+    grossBild.style.transformOrigin = px + '% ' + py + '%';
+  }
+
+  grossBild.addEventListener('pointerdown', e => {
+    druck = { x: e.clientX, y: e.clientY, bewegt: false };
+    if (grossEl.classList.contains('zoom')) { try { grossBild.setPointerCapture(e.pointerId); } catch (_) {} }
+  });
+  grossBild.addEventListener('pointermove', e => {
+    if (!grossEl.classList.contains('zoom')) return;
+    if (e.pointerType !== 'mouse' && !druck) return;
+    if (druck && Math.hypot(e.clientX - druck.x, e.clientY - druck.y) > 6) druck.bewegt = true;
+    lupeVerschieben(e.clientX, e.clientY);
+  });
+  grossBild.addEventListener('click', e => {
+    const gezogen = druck && druck.bewegt;
+    druck = null;
+    if (gezogen) return;
+    lupeSetzen(!grossEl.classList.contains('zoom'), e.clientX, e.clientY);
+  });
+  grossBild.addEventListener('pointercancel', () => { druck = null; });
+  grossEl.addEventListener('click', e => {
+    if (e.target === grossEl || e.target.classList.contains('gross-hinweis') || e.target.classList.contains('gross-titel')) grossSchliessen();
+  });
+  grossZu.addEventListener('click', grossSchliessen);
+  grossEl.addEventListener('keydown', e => {
+    if (e.key === 'Tab') { e.preventDefault(); grossZu.focus(); }
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !grossEl.hidden) grossSchliessen();
+  });
+
+  // Auf dem Handy innerhalb von Genially: Link zum Öffnen in eigenem Fenster anzeigen
+  (function () {
+    const eingebettet = window.self !== window.top;
+    const kleinerBildschirm = Math.min(screen.width, screen.height) < 600;
+    if (eingebettet && kleinerBildschirm) {
+      const link = document.getElementById('extern');
+      link.href = location.href;
+      link.hidden = false;
+    }
+  })();
+
+  btnPruefen.addEventListener('click', e => pruefen(e.detail === 0));
+  btnLoesungen.addEventListener('click', loesungAnzeigen);
+  btnNeu.addEventListener('click', e => neuBeginnen(e.detail === 0));
+
+  darstellen();
+</script>
+<!-- =====================================================================
+     EINPASSEN: Die Übung füllt ihren Rahmen (z. B. in Genially) möglichst
+     ohne Scrollen. Die Schrift – und damit alles, was in rem angegeben ist –
+     wird so groß gewählt, wie es die Höhe UND die Breite des Rahmens erlauben.
+     Bei breiten Rahmen dürfen die Begriffe rechts neben Text bzw. Bild stehen.
+     Passt die Übung selbst bei kleinster Schrift nicht (z. B. Handy),
+     wird wie bisher gescrollt.
+     Einbau: diesen ganzen Block ganz unten einfügen, direkt vor dem schließenden body-Tag.
+     ===================================================================== -->
+<style>
+  /* Im eingepassten Zustand etwas weniger Rand, damit mehr Platz für die Übung bleibt */
+  html.einpassen body { padding: clamp(10px, 3.5vh, 36px) clamp(14px, 3.5vw, 40px); }
+  html.eingepasst .wortauswahl.fixiert { max-height: none; overflow: visible; }
+  /* Fotos (Bildvergleich): Höhe in rem statt nach Bildschirmhöhe, damit sie beim Einpassen mitwachsen */
+  html.eingepasst { --bild-hoehe: 12rem; }
+
+  /* Rückmeldung neben den Knöpfen statt darüber – spart eine Zeile Höhe */
+  html.einpassen .auswertung { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem 1.25rem; margin-top: 1.1rem; padding-top: .9rem; }
+  html.einpassen .auswertung .knoepfe { order: 1; }
+  html.einpassen .auswertung .ergebnis { order: 2; flex: 1 1 18rem; margin: 0; }
+
+  /* Breiter Rahmen: Begriffe rechts neben Text bzw. Bild */
+  main.seitlich {
+    display: grid;
+    grid-template-columns: minmax(0, max-content) minmax(11rem, 17rem);
+    justify-content: center;
+    column-gap: clamp(1rem, 2.5vw, 2.25rem);
+    grid-auto-flow: row dense;
+    align-items: start;
+  }
+  main.seitlich > * { grid-column: 1 / -1; }
+  main.seitlich > .text,
+  main.seitlich > .bild { grid-column: 1; }
+  main.seitlich > .wortauswahl { grid-column: 2; margin: 0; }
+  main.seitlich > .wortauswahl.fixiert { position: static; box-shadow: none; }
+</style>
+<script>
+  // ====== HIER ANPASSEN: Einpassen in den Rahmen ======
+  const EINPASSEN = {
+    aktiv: true,     // false = wie früher: Schrift richtet sich nur nach der Breite, Höhe egal
+    minSchrift: 13,  // px – kleiner wird die Schrift nie. Passt es dann noch nicht, wird gescrollt.
+    minSchriftImRahmen: 11, // px – dasselbe, wenn die Übung eingebettet ist (Genially vergrößert
+                            //      die ganze Seite beim Anzeigen ohnehin auf Bildschirmgröße)
+    maxSchrift: 30,  // px – größer wird die Schrift nie (bei sehr großen Rahmen)
+    seitlich: true   // true = bei breiten Rahmen dürfen die Begriffe rechts neben Text/Bild stehen
+  };
+
+  // ---------- Ab hier nichts mehr ändern nötig ----------
+  (function () {
+    if (!EINPASSEN.aktiv) return;
+    const html = document.documentElement;
+    const main = document.querySelector('main');
+    if (!main) return;
+    html.classList.add('einpassen');
+
+    // Welche Anordnungen ausprobiert werden (Klassen an <main>). Eine Übung kann eigene
+    // Varianten vorgeben (window.einpassenVarianten) und eine Zusatzprüfung (window.einpassenPruefen).
+    let varianten = window.einpassenVarianten || [[], ['seitlich']];
+    if (!EINPASSEN.seitlich || !main.querySelector(':scope > .wortauswahl')) {
+      varianten = varianten.filter(v => !v.includes('seitlich'));
+    }
+    if (varianten.length === 0) varianten = [[]];
+    const alleKlassen = [...new Set(varianten.flat())];
+    // Platzhalter für die Rückmeldung nach dem Prüfen – damit später nichts überläuft
+    const PLATZHALTER = '10 von 12 richtig. Tausche die rot markierten Antworten aus, fülle die 2 leeren Stellen und prüfe dann noch einmal.';
+
+    let laeuft = false, nachholen = false, geplant = false;
+
+    // Passt alles in den Rahmen? Beim Suchen mit etwas Reserve, damit später nichts knapp überläuft.
+    const unterkante = () => main.getBoundingClientRect().bottom + window.scrollY
+      + parseFloat(getComputedStyle(document.body).paddingBottom);
+    const passt = (reserve = 6) => unterkante() <= window.innerHeight - reserve
+      && html.scrollWidth <= window.innerWidth + 1;
+    const ziehtGerade = () => html.classList.contains('ziehen') || document.body.classList.contains('zieht');
+
+    function setzen(px, v) {
+      html.style.fontSize = px + 'px';
+      alleKlassen.forEach(k => main.classList.toggle(k, v.includes(k)));
+    }
+
+    function einpassen() {
+      if (ziehtGerade()) { nachholen = true; return; }
+      laeuft = true;
+      const breite = window.innerWidth;
+      const eingebettet = window.self !== window.top;
+      const normal = Math.min(22, Math.max(15, 0.009 * breite + 9)); // bisherige Größe nach Breite
+      const minimum = eingebettet ? EINPASSEN.minSchriftImRahmen : EINPASSEN.minSchrift;
+      const unten = breite < 600 ? normal : Math.min(minimum, normal);
+      const oben = Math.max(unten, Math.min(EINPASSEN.maxSchrift, Math.max(normal, breite / 40)));
+
+      // Spätere Inhalte schon mit einplanen: Rückmeldung und alle Knöpfe
+      const ergebnis = document.getElementById('ergebnis');
+      let probe = null;
+      if (ergebnis && !ergebnis.textContent.trim()) {
+        probe = ergebnis.cloneNode(false);
+        probe.removeAttribute('id');
+        probe.removeAttribute('aria-live');
+        probe.setAttribute('aria-hidden', 'true');
+        probe.textContent = PLATZHALTER;
+        ergebnis.after(probe);
+      }
+      const versteckt = [...document.querySelectorAll('.knoepfe [hidden]')];
+      versteckt.forEach(b => { b.hidden = false; });
+      html.classList.add('eingepasst');
+      const x = window.scrollX, y = window.scrollY;
+
+      let beste = null;
+      varianten.forEach(v => {
+        setzen(unten, v);
+        if (!passt()) return;
+        let lo = unten, hi = oben;
+        setzen(hi, v);
+        if (passt()) lo = hi;
+        else {
+          while (hi - lo > 0.2) {
+            const mitte = (lo + hi) / 2;
+            setzen(mitte, v);
+            if (passt()) lo = mitte; else hi = mitte;
+          }
+        }
+        setzen(lo, v);
+        // Zusatzprüfung der Übung (z. B. Beschriftungen im Bild lesbar). Schlägt sie fehl,
+        // die größte kleinere Schrift suchen, bei der beides erfüllt ist.
+        const pruefung = window.einpassenPruefen;
+        if (typeof pruefung === 'function' && !pruefung()) {
+          const beides = () => passt() && pruefung();
+          setzen(unten, v);
+          if (!beides()) return;
+          let gut = unten, schlecht = lo;
+          while (schlecht - gut > 0.2) {
+            const mitte = (gut + schlecht) / 2;
+            setzen(mitte, v);
+            if (beides()) gut = mitte; else schlecht = mitte;
+          }
+          lo = gut;
+        }
+        // Eine spätere Anordnung wird nur genommen, wenn sie deutlich größere Schrift erlaubt
+        if (!beste || lo > beste.px * 1.08) beste = { px: lo, v };
+      });
+
+      if (probe) probe.remove();
+      versteckt.forEach(b => { b.hidden = true; });
+      if (beste) {
+        setzen(beste.px, beste.v);
+      } else {
+        // Passt nirgends: es wird gescrollt. Im eingebetteten Rahmen mit kleiner Schrift
+        // (möglichst wenig scrollen), sonst (z. B. Handy) in normaler Größe.
+        html.classList.remove('eingepasst');
+        setzen(normal, []);
+        html.style.fontSize = (eingebettet && breite >= 600) ? unten + 'px' : '';
+      }
+      window.scrollTo(x, y);
+      laeuft = false;
+    }
+
+    function planen() {
+      if (geplant) return;
+      geplant = true;
+      requestAnimationFrame(() => { geplant = false; einpassen(); });
+    }
+
+    window.addEventListener('resize', planen);
+    window.addEventListener('load', planen);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(planen);
+    // Wird der Inhalt später doch größer (z. B. ein langes Wort in einer Lücke), neu einpassen
+    if ('ResizeObserver' in window) {
+      new ResizeObserver(() => {
+        if (!laeuft && html.classList.contains('eingepasst') && !passt(0)) planen();
+      }).observe(main);
+    }
+    // Während gezogen wird, nichts verschieben – erst danach
+    document.addEventListener('pointerup', () => { if (nachholen) { nachholen = false; setTimeout(planen, 0); } });
+    document.addEventListener('pointercancel', () => { if (nachholen) { nachholen = false; setTimeout(planen, 0); } });
+    einpassen();
+  })();
+</script>
+</body>
+</html>
